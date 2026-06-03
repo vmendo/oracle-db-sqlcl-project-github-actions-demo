@@ -1,0 +1,118 @@
+name: SQLcl Project Validate
+
+on:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sqlcl-project-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Project verify
+    runs-on: ubuntu-latest
+
+    env:
+      SQLCL_DOWNLOAD_URL: https://download.oracle.com/otn_software/java/sqldeveloper/sqlcl-latest.zip
+      TARGET_DB_USER: ${{ secrets.TARGET_DB_USER }}
+      TARGET_DB_PASSWORD: ${{ secrets.TARGET_DB_PASSWORD }}
+      TARGET_DB_CONNECT_STRING: ${{ secrets.TARGET_DB_CONNECT_STRING }}
+      TARGET_DB_WALLET_ZIP_B64: ${{ secrets.TARGET_DB_WALLET_ZIP_B64 }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare SQLcl Projects default branch reference
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin main:refs/heads/main
+
+      - name: Check SQLcl Project verify prerequisites
+        id: verify_prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -f dist/releases/main.changelog.xml ]]; then
+            echo "run_verify=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_verify=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping project verify because dist/releases/main.changelog.xml does not exist yet. Run and merge the base_release development cycle first."
+          fi
+
+      - name: Set up Java
+        if: steps.verify_prerequisites.outputs.run_verify == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install SQLcl
+        if: steps.verify_prerequisites.outputs.run_verify == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --location --show-error --silent \
+            --output "$RUNNER_TEMP/sqlcl.zip" \
+            "$SQLCL_DOWNLOAD_URL"
+
+          unzip -q "$RUNNER_TEMP/sqlcl.zip" -d "$RUNNER_TEMP/sqlcl"
+          echo "$RUNNER_TEMP/sqlcl/sqlcl/bin" >> "$GITHUB_PATH"
+
+      - name: Validate required target database secrets
+        if: steps.verify_prerequisites.outputs.run_verify == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for variable_name in TARGET_DB_USER TARGET_DB_PASSWORD TARGET_DB_CONNECT_STRING TARGET_DB_WALLET_ZIP_B64; do
+            if [[ -z "${!variable_name:-}" ]]; then
+              echo "::error::$variable_name is required"
+              exit 1
+            fi
+          done
+
+      - name: Prepare Autonomous Database wallet
+        if: steps.verify_prerequisites.outputs.run_verify == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$RUNNER_TEMP/adb-wallet"
+          printf '%s' "$TARGET_DB_WALLET_ZIP_B64" | base64 --decode > "$RUNNER_TEMP/adb-wallet.zip"
+          unzip -q "$RUNNER_TEMP/adb-wallet.zip" -d "$RUNNER_TEMP/adb-wallet"
+          echo "TNS_ADMIN=$RUNNER_TEMP/adb-wallet" >> "$GITHUB_ENV"
+
+      - name: Show SQLcl version
+        if: steps.verify_prerequisites.outputs.run_verify == 'true'
+        shell: bash
+        run: sql -version
+
+      - name: Run SQLcl Project verify
+        if: steps.verify_prerequisites.outputs.run_verify == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sql -s -L /nolog <<SQL | tee sqlcl-project-verify.log
+          connect -cloudconfig "$RUNNER_TEMP/adb-wallet.zip" -user "$TARGET_DB_USER" -password "$TARGET_DB_PASSWORD" -url "$TARGET_DB_CONNECT_STRING"
+          set sqlprompt ''
+          set echo off
+          set feedback off
+          project verify -verbose
+          exit
+          SQL
+
+          bash .github/scripts/check-sqlcl-verify-output.sh sqlcl-project-verify.log

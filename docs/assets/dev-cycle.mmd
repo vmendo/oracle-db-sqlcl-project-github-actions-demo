@@ -1,0 +1,13 @@
+flowchart TD
+  A[Start from main] --> B[Developer changes MYAPP manually]
+  B --> C[Run dev_cycle.sh cycle_name]
+  C --> D[Create dev_cycle branch]
+  D --> E[project export]
+  E --> F[Commit src]
+  F --> G[project stage]
+  G --> H[Review dist/releases/next]
+  H --> I[Commit dist]
+  I --> J[Push branch]
+  J --> K[Open GitHub PR]
+  K --> L[Manual review and merge]
+  L --> M[Next cycle starts from main]

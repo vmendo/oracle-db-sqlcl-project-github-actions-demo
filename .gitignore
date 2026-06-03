@@ -1,0 +1,38 @@
+# Generated SQLcl Project workspace
+projects/
+*/projects/
+**/projects/
+run/.demo_selection.env
+
+# SQLcl and Liquibase logs
+*.log
+sqlcl-lb-*.log
+
+# Runtime artifacts
+artifact/
+artifacts/
+*.zip
+*.tgz
+*.b64
+*.wallet
+Wallet_*.zip
+
+# Local environment overrides and secrets
+.env
+.env.*
+*.secret
+*.secrets
+*.pem
+*.key
+*.p12
+*.sso
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+.tmp/

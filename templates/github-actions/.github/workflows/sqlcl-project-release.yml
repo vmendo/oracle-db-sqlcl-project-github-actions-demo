@@ -1,0 +1,208 @@
+name: SQLcl Project Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version, for example 1.0.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sqlcl-project-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release and package
+    runs-on: ubuntu-latest
+
+    env:
+      SQLCL_DOWNLOAD_URL: https://download.oracle.com/otn_software/java/sqldeveloper/sqlcl-latest.zip
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check main branch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF_NAME" != "main" ]]; then
+            echo "::error::Run this workflow from main. Current ref: $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install SQLcl
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --location --show-error --silent \
+            --output "$RUNNER_TEMP/sqlcl.zip" \
+            "$SQLCL_DOWNLOAD_URL"
+
+          unzip -q "$RUNNER_TEMP/sqlcl.zip" -d "$RUNNER_TEMP/sqlcl"
+          echo "$RUNNER_TEMP/sqlcl/sqlcl/bin" >> "$GITHUB_PATH"
+
+      - name: Prepare release inputs
+        id: release_inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_version="${{ inputs.version }}"
+          if [[ ! "$release_version" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "::error::Release version must start with a letter or number and contain only letters, numbers, dots, underscores, and hyphens."
+            exit 1
+          fi
+
+          project_name="$(jq -r '.project // empty' .dbtools/project.config.json)"
+          if [[ -z "$project_name" || "$project_name" == "null" ]]; then
+            echo "::error::Cannot read project name from .dbtools/project.config.json"
+            exit 1
+          fi
+
+          release_tag="$release_version"
+          if [[ "$release_tag" != v* ]]; then
+            release_tag="v$release_tag"
+          fi
+
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::GitHub release already exists: $release_tag"
+            exit 1
+          fi
+
+          if git rev-parse -q --verify "refs/tags/$release_tag" >/dev/null; then
+            echo "::error::Git tag already exists locally: $release_tag"
+            exit 1
+          fi
+
+          echo "version=$release_version" >> "$GITHUB_OUTPUT"
+          echo "project_name=$project_name" >> "$GITHUB_OUTPUT"
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Show SQLcl version
+        shell: bash
+        run: sql -version
+
+      - name: Run SQLcl Project release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_version="${{ steps.release_inputs.outputs.version }}"
+
+          sql -s -L /nolog <<SQL | tee sqlcl-project-release.log
+          set sqlprompt ''
+          set echo off
+          set feedback off
+          project release -version $release_version -verbose
+          exit
+          SQL
+
+          rm -f "dist/releases/$release_version/.gitkeep"
+
+      - name: Run SQLcl Project artifact generation
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_version="${{ steps.release_inputs.outputs.version }}"
+          project_name="${{ steps.release_inputs.outputs.project_name }}"
+
+          sql -s -L /nolog <<SQL | tee sqlcl-project-gen-artifact.log
+          set sqlprompt ''
+          set echo off
+          set feedback off
+          project gen-artifact -name $project_name -version $release_version -format zip -force -verbose
+          exit
+          SQL
+
+      - name: Locate generated artifact
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_version="${{ steps.release_inputs.outputs.version }}"
+          project_name="${{ steps.release_inputs.outputs.project_name }}"
+          artifact_file="artifact/$project_name-$release_version.zip"
+
+          if [[ ! -f "$artifact_file" ]]; then
+            artifact_file="$(find artifact -maxdepth 1 -type f -name '*.zip' -print | sort | tail -n 1)"
+          fi
+
+          if [[ -z "${artifact_file:-}" || ! -f "$artifact_file" ]]; then
+            echo "::error::No generated ZIP artifact found under artifact/"
+            exit 1
+          fi
+
+          echo "file=$artifact_file" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$artifact_file")" >> "$GITHUB_OUTPUT"
+
+      - name: Recreate empty next release folder
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist/releases/next
+          : > dist/releases/next/.gitkeep
+
+      - name: Commit closed SQLcl Project release state
+        id: release_commit
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_version="${{ steps.release_inputs.outputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add .dbtools dist
+          if git diff --cached --quiet; then
+            echo "::error::project release did not produce repository changes to commit."
+            exit 1
+          fi
+
+          git commit -m "chore: release $release_version"
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: ${{ steps.artifact.outputs.file }}
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_version="${{ steps.release_inputs.outputs.version }}"
+          project_name="${{ steps.release_inputs.outputs.project_name }}"
+          release_tag="${{ steps.release_inputs.outputs.tag }}"
+          release_sha="${{ steps.release_commit.outputs.sha }}"
+          artifact_file="${{ steps.artifact.outputs.file }}"
+
+          gh release create "$release_tag" "$artifact_file" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$release_sha" \
+            --title "$project_name $release_version" \
+            --notes "SQLcl Projects release $release_version generated from commit $release_sha."

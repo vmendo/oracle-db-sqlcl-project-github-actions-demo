@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SQLcl Projects CI/CD Flow</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1f2937;
+      --muted: #5b6676;
+      --line: #cbd5e1;
+      --panel: #ffffff;
+      --page: #f6f8fb;
+      --blue: #2563eb;
+      --blue-soft: #dbeafe;
+      --green: #15803d;
+      --green-soft: #dcfce7;
+      --amber: #b45309;
+      --amber-soft: #fef3c7;
+      --cyan: #0e7490;
+      --cyan-soft: #cffafe;
+      --red: #b91c1c;
+      --red-soft: #fee2e2;
+      --shadow: 0 18px 40px rgba(15, 23, 42, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 24px 56px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-bottom: 26px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 46px);
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    code {
+      background: #eef2f7;
+      border: 1px solid #d6dee9;
+      border-radius: 5px;
+      color: #18212f;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+      padding: 1px 5px;
+    }
+
+    .subtitle {
+      max-width: 860px;
+      font-size: 18px;
+    }
+
+    .banner {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 24px 0 24px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 16px;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+    }
+
+    .metric strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 15px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 22px;
+      margin-top: 18px;
+    }
+
+    .diagram-wrap {
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    svg {
+      display: block;
+      min-width: 1060px;
+      width: 100%;
+      height: auto;
+    }
+
+    .lane-label {
+      font-size: 15px;
+      font-weight: 700;
+      fill: #243145;
+    }
+
+    .lane-note {
+      font-size: 12px;
+      fill: #64748b;
+    }
+
+    .box-title {
+      font-size: 15px;
+      font-weight: 700;
+      fill: #111827;
+    }
+
+    .box-text {
+      font-size: 12px;
+      fill: #475569;
+    }
+
+    .small-code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 11px;
+      fill: #334155;
+    }
+
+    .flow-line {
+      stroke: #475569;
+      stroke-width: 2.2;
+      fill: none;
+    }
+
+    .flow-line-soft {
+      stroke: #94a3b8;
+      stroke-width: 1.8;
+      fill: none;
+      stroke-dasharray: 5 5;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      flex: 0 0 auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .state {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #ffffff;
+    }
+
+    .state ul {
+      margin: 12px 0 0;
+      padding-left: 19px;
+      color: var(--muted);
+    }
+
+    .state li {
+      margin: 7px 0;
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 14px;
+      min-height: 126px;
+    }
+
+    .step .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      color: #0f172a;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .step p {
+      font-size: 13px;
+    }
+
+    .callout {
+      border-left: 5px solid var(--blue);
+      background: #eff6ff;
+      padding: 14px 16px;
+      margin-top: 18px;
+      border-radius: 6px;
+    }
+
+    .callout strong {
+      color: #1d4ed8;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        padding: 22px 14px 42px;
+      }
+
+      .banner,
+      .grid,
+      .timeline,
+      .legend {
+        grid-template-columns: 1fr;
+      }
+
+      .section {
+        padding: 16px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+
+      main {
+        max-width: none;
+        padding: 18px;
+      }
+
+      .section,
+      .metric {
+        box-shadow: none;
+      }
+
+      .diagram-wrap {
+        overflow: visible;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>SQLcl Projects CI/CD Flow</h1>
+      <p class="subtitle">
+        Database changes are captured in development branches, validated before merge,
+        accumulated in <code>dist/releases/next</code> on <code>main</code>, and closed
+        into versioned release artifacts only when the team decides to publish.
+      </p>
+    </header>
+
+    <section class="banner" aria-label="Flow summary">
+      <div class="metric">
+        <strong>Developer branch</strong>
+        <span>Database-first changes are exported and staged.</span>
+      </div>
+      <div class="metric">
+        <strong>Pull request validation</strong>
+        <span><code>project verify</code> checks the staged branch output.</span>
+      </div>
+      <div class="metric">
+        <strong>Main accumulation</strong>
+        <span>Merged changes stay pending in <code>dist/releases/next</code>.</span>
+      </div>
+      <div class="metric">
+        <strong>Manual release</strong>
+        <span><code>project release</code> and <code>gen-artifact</code> create the ZIP.</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>End-to-End Process</h2>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 1120 730" role="img" aria-labelledby="flowTitle flowDesc">
+          <title id="flowTitle">SQLcl Projects development, validation, release, artifact, and deploy flow</title>
+          <desc id="flowDesc">
+            The diagram shows a developer branch exporting and staging database changes,
+            a pull request running project verify, main accumulating next changelogs,
+            a manual release moving next into a versioned folder before generating an artifact,
+            and a manual production deploy from a selected GitHub Release artifact.
+          </desc>
+
+          <defs>
+            <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+              <path d="M2,2 L10,6 L2,10 Z" fill="#475569"></path>
+            </marker>
+            <marker id="arrowSoft" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+              <path d="M2,2 L10,6 L2,10 Z" fill="#94a3b8"></path>
+            </marker>
+          </defs>
+
+          <rect x="18" y="42" width="1084" height="118" rx="8" fill="#f8fafc" stroke="#d8e0ec"></rect>
+          <rect x="18" y="188" width="1084" height="118" rx="8" fill="#f8fafc" stroke="#d8e0ec"></rect>
+          <rect x="18" y="334" width="1084" height="118" rx="8" fill="#f8fafc" stroke="#d8e0ec"></rect>
+          <rect x="18" y="480" width="1084" height="108" rx="8" fill="#f8fafc" stroke="#d8e0ec"></rect>
+          <rect x="18" y="610" width="1084" height="92" rx="8" fill="#f8fafc" stroke="#d8e0ec"></rect>
+
+          <text x="38" y="73" class="lane-label">Development Branch</text>
+          <text x="38" y="94" class="lane-note">Local SQLcl connection: MIKE[MYAPP]</text>
+
+          <text x="38" y="219" class="lane-label">Pull Request</text>
+          <text x="38" y="240" class="lane-note">Validation workflow runs on branch pushes</text>
+
+          <text x="38" y="365" class="lane-label">main Branch</text>
+          <text x="38" y="386" class="lane-note">Merged staged changes accumulate in next</text>
+
+          <text x="38" y="511" class="lane-label">Release Output</text>
+          <text x="38" y="532" class="lane-note">Versioned changelog and immutable ZIP artifact</text>
+
+          <text x="38" y="641" class="lane-label">Production Deployment</text>
+          <text x="38" y="662" class="lane-note">Manual list, preview, and deploy operations</text>
+
+          <rect x="210" y="62" width="150" height="76" rx="8" fill="#dbeafe" stroke="#60a5fa"></rect>
+          <text x="230" y="90" class="box-title">Change DB</text>
+          <text x="230" y="112" class="box-text">Apply schema changes</text>
+          <text x="230" y="130" class="small-code">@v1_sql_scripts/...</text>
+
+          <rect x="410" y="62" width="150" height="76" rx="8" fill="#dcfce7" stroke="#4ade80"></rect>
+          <text x="430" y="90" class="box-title">Export</text>
+          <text x="430" y="112" class="box-text">Capture source state</text>
+          <text x="430" y="130" class="small-code">project export</text>
+
+          <rect x="610" y="62" width="150" height="76" rx="8" fill="#fef3c7" stroke="#f59e0b"></rect>
+          <text x="630" y="90" class="box-title">Stage</text>
+          <text x="630" y="112" class="box-text">Generate changelogs</text>
+          <text x="630" y="130" class="small-code">project stage</text>
+
+          <rect x="810" y="62" width="150" height="76" rx="8" fill="#cffafe" stroke="#22d3ee"></rect>
+          <text x="830" y="90" class="box-title">Push Branch</text>
+          <text x="830" y="112" class="box-text">Open or update PR</text>
+          <text x="830" y="130" class="small-code">git push</text>
+
+          <path class="flow-line" marker-end="url(#arrow)" d="M360 100 H400"></path>
+          <path class="flow-line" marker-end="url(#arrow)" d="M560 100 H600"></path>
+          <path class="flow-line" marker-end="url(#arrow)" d="M760 100 H800"></path>
+
+          <path class="flow-line" marker-end="url(#arrow)" d="M885 138 C885 178 300 158 300 208"></path>
+
+          <rect x="210" y="208" width="190" height="76" rx="8" fill="#e0f2fe" stroke="#38bdf8"></rect>
+          <text x="230" y="236" class="box-title">PR Review</text>
+          <text x="230" y="258" class="box-text">Branch includes src and dist</text>
+          <text x="230" y="276" class="small-code">dist/releases/next</text>
+
+          <rect x="470" y="208" width="190" height="76" rx="8" fill="#fee2e2" stroke="#f87171"></rect>
+          <text x="490" y="236" class="box-title">Validate</text>
+          <text x="490" y="258" class="box-text">Run against target DB</text>
+          <text x="490" y="276" class="small-code">project verify</text>
+
+          <rect x="730" y="208" width="190" height="76" rx="8" fill="#dcfce7" stroke="#4ade80"></rect>
+          <text x="750" y="236" class="box-title">Merge</text>
+          <text x="750" y="258" class="box-text">Approved PR moves to main</text>
+          <text x="750" y="276" class="small-code">merge into main</text>
+
+          <path class="flow-line" marker-end="url(#arrow)" d="M400 246 H460"></path>
+          <path class="flow-line" marker-end="url(#arrow)" d="M660 246 H720"></path>
+
+          <path class="flow-line" marker-end="url(#arrow)" d="M825 284 C825 320 305 304 305 354"></path>
+
+          <rect x="210" y="354" width="220" height="76" rx="8" fill="#fef3c7" stroke="#f59e0b"></rect>
+          <text x="230" y="382" class="box-title">Accumulate Pending Changes</text>
+          <text x="230" y="404" class="box-text">main contains reviewed changelogs</text>
+          <text x="230" y="422" class="small-code">dist/releases/next</text>
+
+          <rect x="500" y="354" width="220" height="76" rx="8" fill="#dbeafe" stroke="#60a5fa"></rect>
+          <text x="520" y="382" class="box-title">Manual Release Workflow</text>
+          <text x="520" y="404" class="box-text">User enters release version</text>
+          <text x="520" y="422" class="small-code">workflow_dispatch</text>
+
+          <rect x="790" y="354" width="220" height="76" rx="8" fill="#dcfce7" stroke="#4ade80"></rect>
+          <text x="810" y="382" class="box-title">Close Release</text>
+          <text x="810" y="404" class="box-text">Move next into version folder</text>
+          <text x="810" y="422" class="small-code">project release -version 1.0.0</text>
+
+          <path class="flow-line" marker-end="url(#arrow)" d="M430 392 H490"></path>
+          <path class="flow-line" marker-end="url(#arrow)" d="M720 392 H780"></path>
+
+          <path class="flow-line" marker-end="url(#arrow)" d="M900 430 C900 462 305 454 305 500"></path>
+
+          <rect x="210" y="500" width="220" height="66" rx="8" fill="#cffafe" stroke="#22d3ee"></rect>
+          <text x="230" y="527" class="box-title">Generate Artifact</text>
+          <text x="230" y="549" class="small-code">project gen-artifact -format zip</text>
+
+          <rect x="500" y="500" width="220" height="66" rx="8" fill="#e0f2fe" stroke="#38bdf8"></rect>
+          <text x="520" y="527" class="box-title">Commit Release State</text>
+          <text x="520" y="549" class="small-code">git commit on main</text>
+
+          <rect x="790" y="500" width="220" height="66" rx="8" fill="#dcfce7" stroke="#4ade80"></rect>
+          <text x="810" y="527" class="box-title">Publish GitHub Release</text>
+          <text x="810" y="549" class="small-code">v1.0.0 + MyAppCICD-1.0.0.zip</text>
+
+          <path class="flow-line" marker-end="url(#arrow)" d="M430 533 H490"></path>
+          <path class="flow-line" marker-end="url(#arrow)" d="M720 533 H780"></path>
+
+          <path class="flow-line-soft" marker-end="url(#arrowSoft)" d="M610 500 C610 466 610 466 610 436"></path>
+          <text x="632" y="474" class="lane-note">main is ready for new next changes</text>
+
+          <path class="flow-line" marker-end="url(#arrow)" d="M900 566 C900 602 320 590 320 630"></path>
+
+          <rect x="210" y="630" width="220" height="56" rx="8" fill="#e0f2fe" stroke="#38bdf8"></rect>
+          <text x="230" y="654" class="box-title">Select Artifact</text>
+          <text x="230" y="674" class="small-code">operation=list</text>
+
+          <rect x="500" y="630" width="220" height="56" rx="8" fill="#fef3c7" stroke="#f59e0b"></rect>
+          <text x="520" y="654" class="box-title">Preview SQL</text>
+          <text x="520" y="674" class="small-code">lb update-sql</text>
+
+          <rect x="790" y="630" width="220" height="56" rx="8" fill="#dcfce7" stroke="#4ade80"></rect>
+          <text x="810" y="654" class="box-title">Deploy Production</text>
+          <text x="810" y="674" class="small-code">project deploy</text>
+
+          <path class="flow-line" marker-end="url(#arrow)" d="M430 658 H490"></path>
+          <path class="flow-line" marker-end="url(#arrow)" d="M720 658 H780"></path>
+        </svg>
+      </div>
+
+      <div class="legend" aria-label="Diagram legend">
+        <div class="legend-item"><span class="swatch" style="background: var(--blue-soft);"></span>Local database work</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--green-soft);"></span>SQLcl Project command</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--amber-soft);"></span>Pending changelog state</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--red-soft);"></span>Validation gate</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--cyan-soft);"></span>GitHub operation</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Repository State Transition</h2>
+      <div class="grid">
+        <div class="state">
+          <h3>Before the manual release</h3>
+          <p>The <code>main</code> branch can contain multiple merged development cycles.</p>
+          <ul>
+            <li><code>dist/releases/next</code> contains the accumulated pending changelogs.</li>
+            <li><code>src/database</code> reflects the latest exported schema source.</li>
+            <li>No immutable release artifact has been created yet.</li>
+          </ul>
+        </div>
+        <div class="state">
+          <h3>After the manual release</h3>
+          <p>The workflow closes the pending SQLcl Project release.</p>
+          <ul>
+            <li>Pending changelog content from <code>dist/releases/next</code> is moved into <code>dist/releases/&lt;version&gt;</code>.</li>
+            <li><code>dist/releases/next/.gitkeep</code> is recreated so the empty next folder stays visible in Git.</li>
+            <li><code>dist/releases/main.changelog.xml</code> points at the closed version.</li>
+            <li><code>artifact/MyAppCICD-&lt;version&gt;.zip</code> is generated and attached to GitHub Releases.</li>
+            <li>The closed release state is committed back to <code>main</code>.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout">
+        <strong>Release behavior:</strong>
+        the release workflow does not need a database connection. It only closes
+        already staged repository changes and packages the SQLcl Project artifact.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Operational Sequence</h2>
+      <div class="timeline">
+        <div class="step">
+          <div class="num">1</div>
+          <h3>Develop</h3>
+          <p>Apply changes in the development database and run <code>dev_cycle.sh</code> to export and stage them.</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <h3>Validate</h3>
+          <p>Push the branch. GitHub Actions runs <code>project verify</code> before the pull request is merged.</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <h3>Accumulate</h3>
+          <p>Merge approved branches into <code>main</code>. Pending release content stays in <code>next</code>.</p>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <h3>Release</h3>
+          <p>Run the manual <code>SQLcl Project Release</code> workflow from <code>main</code> and provide the version.</p>
+        </div>
+        <div class="step">
+          <div class="num">5</div>
+          <h3>Restart</h3>
+          <p>The closed release is committed to <code>main</code>, and <code>next</code> remains visible with no pending changes.</p>
+        </div>
+        <div class="step">
+          <div class="num">6</div>
+          <h3>Deploy</h3>
+          <p>Run the manual deploy workflow to list artifacts, preview SQL, and deploy the selected release to production.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

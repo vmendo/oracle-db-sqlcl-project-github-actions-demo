@@ -1,0 +1,13 @@
+erDiagram
+  TEAMS ||--o{ PLAYERS : has
+  TEAMS ||--o{ COACHES : has
+  TEAMS ||--o{ GAMES : plays
+  TEAMS ||--o{ EXPENSES : records
+  TEAMS ||--o{ REVENUES : records
+  TEAMS ||--o{ SPONSOR_AGREEMENTS : signs
+  SPONSORS ||--o{ SPONSOR_AGREEMENTS : funds
+  PLAYERS ||--o{ PLAYER_CONTRACTS : has
+  PLAYERS ||--o{ PLAYER_GAME_STATS : records
+  GAMES ||--o{ PLAYER_GAME_STATS : contains
+  COACHES ||--o{ TRAINING_SESSIONS : leads
+  PLAYERS ||--o{ INJURY_REPORTS : may_have

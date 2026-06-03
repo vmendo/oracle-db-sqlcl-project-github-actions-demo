@@ -1,0 +1,460 @@
+name: SQLcl Project Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Operation to run
+        required: true
+        default: list
+        type: choice
+        options:
+          - list
+          - preview
+          - deploy
+      release_tag:
+        description: GitHub Release tag, for example v1.0.0 or 1.0.0
+        required: false
+        type: string
+      artifact_name:
+        description: Optional ZIP asset name. Leave empty when the release has one ZIP.
+        required: false
+        type: string
+      allow_older_version:
+        description: Allow deployment of a version older than the inferred production version
+        required: true
+        default: false
+        type: boolean
+      confirm_production_deploy:
+        description: Required only when operation is deploy
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sqlcl-project-deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy-operation:
+    name: SQLcl Project deploy operation
+    runs-on: ubuntu-latest
+
+    env:
+      SQLCL_DOWNLOAD_URL: https://download.oracle.com/otn_software/java/sqldeveloper/sqlcl-latest.zip
+      GH_TOKEN: ${{ github.token }}
+      TARGET_DB_USER: ${{ secrets.TARGET_DB_USER }}
+      TARGET_DB_PASSWORD: ${{ secrets.TARGET_DB_PASSWORD }}
+      TARGET_DB_CONNECT_STRING: ${{ secrets.TARGET_DB_CONNECT_STRING }}
+      TARGET_DB_WALLET_ZIP_B64: ${{ secrets.TARGET_DB_WALLET_ZIP_B64 }}
+
+    steps:
+      - name: List available GitHub Release artifacts
+        if: ${{ inputs.operation == 'list' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release list \
+            --repo "$GITHUB_REPOSITORY" \
+            --limit 20 \
+            --json tagName,name,isDraft,isPrerelease,publishedAt \
+            > "$RUNNER_TEMP/releases.json"
+
+          {
+            echo "## Available release artifacts"
+            echo ""
+            echo "| Release tag | Release name | Published at | Assets |"
+            echo "|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$(jq 'length' "$RUNNER_TEMP/releases.json")" -eq 0 ]]; then
+            echo "No GitHub Releases were found." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          jq -r '.[].tagName' "$RUNNER_TEMP/releases.json" | while read -r release_tag; do
+            release_name="$(jq -r --arg tag "$release_tag" '.[] | select(.tagName == $tag) | .name' "$RUNNER_TEMP/releases.json")"
+            published_at="$(jq -r --arg tag "$release_tag" '.[] | select(.tagName == $tag) | .publishedAt' "$RUNNER_TEMP/releases.json")"
+            assets="$(gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name] | join(", ")')"
+            if [[ -z "$assets" ]]; then
+              assets="No assets"
+            fi
+            echo "| \`$release_tag\` | $release_name | $published_at | $assets |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          echo ""
+          echo "Run this workflow again with operation \`preview\` or \`deploy\` and the selected release tag." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check main branch
+        if: ${{ inputs.operation != 'list' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF_NAME" != "main" ]]; then
+            echo "::error::Run this workflow from main. Current ref: $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+      - name: Check out repository
+        if: ${{ inputs.operation != 'list' }}
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare deployment inputs
+        if: ${{ inputs.operation != 'list' }}
+        id: deployment_inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          operation="${{ inputs.operation }}"
+          release_tag="${{ inputs.release_tag }}"
+          artifact_name="${{ inputs.artifact_name }}"
+
+          if [[ "$operation" != "preview" && "$operation" != "deploy" ]]; then
+            echo "::error::Unsupported operation: $operation"
+            exit 1
+          fi
+
+          if [[ -z "$release_tag" ]]; then
+            echo "::error::release_tag is required for operation=$operation."
+            exit 1
+          fi
+
+          if [[ "$release_tag" != v* ]]; then
+            release_tag="v$release_tag"
+          fi
+
+          if [[ ! "$release_tag" =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "::error::Release tag must look like v1.0.0 or 1.0.0."
+            exit 1
+          fi
+
+          if [[ "$operation" == "deploy" && "${{ inputs.confirm_production_deploy }}" != "true" ]]; then
+            echo "::error::confirm_production_deploy must be enabled when operation=deploy."
+            exit 1
+          fi
+
+          selected_version="${release_tag#v}"
+          project_name="$(jq -r '.project // empty' .dbtools/project.config.json)"
+          if [[ -z "$project_name" || "$project_name" == "null" ]]; then
+            echo "::error::Cannot read project name from .dbtools/project.config.json"
+            exit 1
+          fi
+
+          echo "operation=$operation" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "selected_version=$selected_version" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+          echo "project_name=$project_name" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java
+        if: ${{ inputs.operation != 'list' }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install SQLcl
+        if: ${{ inputs.operation != 'list' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --location --show-error --silent \
+            --output "$RUNNER_TEMP/sqlcl.zip" \
+            "$SQLCL_DOWNLOAD_URL"
+
+          unzip -q "$RUNNER_TEMP/sqlcl.zip" -d "$RUNNER_TEMP/sqlcl"
+          echo "$RUNNER_TEMP/sqlcl/sqlcl/bin" >> "$GITHUB_PATH"
+
+      - name: Validate required production database secrets
+        if: ${{ inputs.operation != 'list' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+          for secret_name in TARGET_DB_USER TARGET_DB_PASSWORD TARGET_DB_CONNECT_STRING TARGET_DB_WALLET_ZIP_B64; do
+            if [[ -z "${!secret_name:-}" ]]; then
+              missing+=("$secret_name")
+            fi
+          done
+
+          if [[ "${#missing[@]}" -gt 0 ]]; then
+            printf '::error::Missing required secret(s): %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Prepare Autonomous Database wallet
+        if: ${{ inputs.operation != 'list' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wallet_zip="$RUNNER_TEMP/adb-wallet.zip"
+          wallet_dir="$RUNNER_TEMP/adb-wallet"
+          mkdir -p "$wallet_dir"
+
+          printf '%s' "$TARGET_DB_WALLET_ZIP_B64" | base64 --decode > "$wallet_zip"
+          unzip -q "$wallet_zip" -d "$wallet_dir"
+
+          echo "TNS_ADMIN=$wallet_dir" >> "$GITHUB_ENV"
+
+      - name: Download selected release artifact
+        if: ${{ inputs.operation != 'list' }}
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_tag="${{ steps.deployment_inputs.outputs.release_tag }}"
+          artifact_name="${{ steps.deployment_inputs.outputs.artifact_name }}"
+          artifact_dir="$RUNNER_TEMP/release-artifacts"
+          mkdir -p "$artifact_dir"
+
+          if ! gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::GitHub Release not found: $release_tag"
+            exit 1
+          fi
+
+          echo "Assets for $release_tag:"
+          gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'
+
+          if [[ -n "$artifact_name" ]]; then
+            gh release download "$release_tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern "$artifact_name" \
+              --dir "$artifact_dir" \
+              --clobber
+          else
+            gh release download "$release_tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern "*.zip" \
+              --dir "$artifact_dir" \
+              --clobber
+          fi
+
+          mapfile -t artifact_files < <(find "$artifact_dir" -maxdepth 1 -type f -name "*.zip" | sort)
+          if [[ "${#artifact_files[@]}" -eq 0 ]]; then
+            echo "::error::No ZIP artifact was downloaded from $release_tag."
+            exit 1
+          fi
+
+          if [[ "${#artifact_files[@]}" -gt 1 ]]; then
+            printf '::error::Multiple ZIP artifacts found. Set artifact_name explicitly. Files: %s\n' "${artifact_files[*]}"
+            exit 1
+          fi
+
+          artifact_file="${artifact_files[0]}"
+          echo "file=$artifact_file" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$artifact_file")" >> "$GITHUB_OUTPUT"
+
+      - name: Show SQLcl version
+        if: ${{ inputs.operation != 'list' }}
+        shell: bash
+        run: sql -version
+
+      - name: Inspect production Liquibase state
+        if: ${{ inputs.operation != 'list' }}
+        id: production_state
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sql -s -L /nolog <<SQL | tee production-state.log
+          connect -cloudconfig "$RUNNER_TEMP/adb-wallet.zip" -user "$TARGET_DB_USER" -password "$TARGET_DB_PASSWORD" -url "$TARGET_DB_CONNECT_STRING"
+          set sqlprompt ''
+          set echo off
+          set feedback off
+          set heading off
+          set pagesize 0
+          set serveroutput on size unlimited
+          whenever sqlerror exit failure
+
+          declare
+            l_table_count number := 0;
+            l_change_count number := 0;
+            l_release_version varchar2(256);
+          begin
+            select count(*)
+              into l_table_count
+              from user_tables
+             where table_name = 'DATABASECHANGELOG';
+
+            if l_table_count = 0 then
+              dbms_output.put_line('INSTALLED_RELEASE=NONE');
+              dbms_output.put_line('APPLIED_CHANGESETS=0');
+            else
+              execute immediate 'select count(*) from databasechangelog' into l_change_count;
+
+              begin
+                execute immediate q'[
+                  select release_version
+                    from (
+                      select regexp_substr(filename, '(^|/)releases/([^/]+)/', 1, 1, null, 2) release_version,
+                             max(orderexecuted) max_order
+                        from databasechangelog
+                       where regexp_like(filename, '(^|/)releases/[^/]+/')
+                       group by regexp_substr(filename, '(^|/)releases/([^/]+)/', 1, 1, null, 2)
+                       order by max_order desc
+                    )
+                   where rownum = 1
+                ]' into l_release_version;
+              exception
+                when no_data_found then
+                  l_release_version := 'UNKNOWN';
+              end;
+
+              dbms_output.put_line('INSTALLED_RELEASE=' || nvl(l_release_version, 'UNKNOWN'));
+              dbms_output.put_line('APPLIED_CHANGESETS=' || l_change_count);
+            end if;
+          end;
+          /
+          exit
+          SQL
+
+          installed_release="$(sed -n 's/^INSTALLED_RELEASE=//p' production-state.log | tail -n 1 | tr -d '\r')"
+          applied_changesets="$(sed -n 's/^APPLIED_CHANGESETS=//p' production-state.log | tail -n 1 | tr -d '\r')"
+
+          if [[ -z "$installed_release" ]]; then
+            installed_release="UNKNOWN"
+          fi
+          if [[ -z "$applied_changesets" ]]; then
+            applied_changesets="UNKNOWN"
+          fi
+
+          echo "installed_release=$installed_release" >> "$GITHUB_OUTPUT"
+          echo "applied_changesets=$applied_changesets" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Production state"
+            echo ""
+            echo "- Installed release: \`$installed_release\`"
+            echo "- Applied Liquibase changesets: \`$applied_changesets\`"
+            echo "- Selected release: \`${{ steps.deployment_inputs.outputs.release_tag }}\`"
+            echo "- Selected artifact: \`${{ steps.artifact.outputs.name }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guard against older release deployment
+        if: ${{ inputs.operation != 'list' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          installed_release="${{ steps.production_state.outputs.installed_release }}"
+          selected_version="${{ steps.deployment_inputs.outputs.selected_version }}"
+          allow_older="${{ inputs.allow_older_version }}"
+
+          if [[ "$installed_release" == "NONE" || "$installed_release" == "UNKNOWN" ]]; then
+            echo "No comparable production release was inferred."
+            exit 0
+          fi
+
+          newest="$(printf '%s\n%s\n' "$installed_release" "$selected_version" | sort -V | tail -n 1)"
+          if [[ "$newest" != "$selected_version" && "$allow_older" != "true" ]]; then
+            echo "::error::Selected release $selected_version is older than inferred production release $installed_release. Enable allow_older_version only if this is intentional."
+            exit 1
+          fi
+
+      - name: Extract selected artifact
+        if: ${{ inputs.operation != 'list' }}
+        id: extracted_artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          extract_dir="$RUNNER_TEMP/project-artifact"
+          mkdir -p "$extract_dir"
+          unzip -q "${{ steps.artifact.outputs.file }}" -d "$extract_dir"
+
+          if [[ ! -f "$extract_dir/install.sql" ]]; then
+            echo "::error::The artifact does not contain install.sql at its root."
+            exit 1
+          fi
+
+          if [[ ! -f "$extract_dir/releases/main.changelog.xml" ]]; then
+            echo "::error::The artifact does not contain releases/main.changelog.xml."
+            exit 1
+          fi
+
+          echo "dir=$extract_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Generate deploy preview SQL
+        if: ${{ steps.deployment_inputs.outputs.operation == 'preview' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          extract_dir="${{ steps.extracted_artifact.outputs.dir }}"
+          preview_sql="$GITHUB_WORKSPACE/sqlcl-project-deploy-preview.sql"
+
+          cd "$extract_dir"
+
+          sql -s -L /nolog <<SQL | tee "$GITHUB_WORKSPACE/sqlcl-project-deploy-preview.log"
+          connect -cloudconfig "$RUNNER_TEMP/adb-wallet.zip" -user "$TARGET_DB_USER" -password "$TARGET_DB_PASSWORD" -url "$TARGET_DB_CONNECT_STRING"
+          set sqlprompt ''
+          set echo off
+          set feedback on
+          whenever sqlerror exit failure
+          lb validate -changelog-file releases/main.changelog.xml -search-path "." -defaults-file env/default.properties
+          lb update-sql -changelog-file releases/main.changelog.xml -search-path "." -defaults-file env/default.properties -output-file "$preview_sql" -overwrite-output-file
+          exit
+          SQL
+
+          {
+            echo "## Deploy preview"
+            echo ""
+            echo "Preview SQL was generated without applying changes."
+            echo ""
+            echo "- Preview SQL artifact: \`sqlcl-project-deploy-preview.sql\`"
+            echo "- SQLcl log artifact: \`sqlcl-project-deploy-preview.log\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload deploy preview artifacts
+        if: ${{ steps.deployment_inputs.outputs.operation == 'preview' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlcl-project-deploy-preview-${{ steps.deployment_inputs.outputs.selected_version }}
+          path: |
+            sqlcl-project-deploy-preview.sql
+            sqlcl-project-deploy-preview.log
+          if-no-files-found: error
+
+      - name: Deploy selected artifact to production
+        if: ${{ steps.deployment_inputs.outputs.operation == 'deploy' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sql -s -L /nolog <<SQL | tee sqlcl-project-deploy.log
+          connect -cloudconfig "$RUNNER_TEMP/adb-wallet.zip" -user "$TARGET_DB_USER" -password "$TARGET_DB_PASSWORD" -url "$TARGET_DB_CONNECT_STRING"
+          set sqlprompt ''
+          set echo off
+          set feedback on
+          whenever sqlerror exit failure
+          project deploy -file "${{ steps.artifact.outputs.file }}" -log-path "$RUNNER_TEMP/sqlcl-project-deploy-logs" -verbose
+          exit
+          SQL
+
+          {
+            echo "## Production deployment"
+            echo ""
+            echo "Deployment completed for \`${{ steps.artifact.outputs.name }}\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload deploy log artifacts
+        if: ${{ steps.deployment_inputs.outputs.operation == 'deploy' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlcl-project-deploy-log-${{ steps.deployment_inputs.outputs.selected_version }}
+          path: |
+            sqlcl-project-deploy.log
+            ${{ runner.temp }}/sqlcl-project-deploy-logs/**
+          if-no-files-found: warn
