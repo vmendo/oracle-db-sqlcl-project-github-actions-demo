@@ -138,7 +138,7 @@ Capture v2:
 
 ## Prerequisites
 
-- SQLcl 25.3 or newer.
+- SQLcl 26.1 or newer.
 - Java 17 or 21.
 - Git.
 - GitHub CLI authenticated with `gh auth login`.
