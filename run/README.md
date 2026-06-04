@@ -11,6 +11,8 @@ and deployment are deferred to GitHub Actions in the next phase.
 - `create_project.sh` - one-time SQLcl Project bootstrap, GitHub Actions template install, and GitHub sync.
 - `configure_github_actions.sh` - interactive GitHub Actions secrets setup.
 - `dev_cycle.sh` - reusable development cycle: export, stage, commit, push, PR.
+- `install_demo_dashboard_api.sh` - installs the read-only ORDS dashboard API in DEV, PROD, or both.
+- `uninstall_demo_dashboard_api.sh` - removes the read-only ORDS dashboard API.
 - `cleanup_demo.sh` - local cleanup, development reset, optional production schema reset, and optional remote reset.
 
 ## Demo Sequence
@@ -61,6 +63,16 @@ Environment `production`, and records the deployed version after approval.
 
 Configure required reviewers on the GitHub Environment `production` if the
 controlled deploy job should pause for manual approval.
+
+The optional static dashboard compares DEV and PROD through read-only ORDS
+endpoints. Install the API in both environments when you want browser-based
+visibility during the demo:
+
+```bash
+./install_demo_dashboard_api.sh both
+```
+
+See `docs/demo-dashboard.md` for frontend configuration and endpoint details.
 
 Configure the target database secrets and wallet for GitHub Actions:
 

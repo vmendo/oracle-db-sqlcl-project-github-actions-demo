@@ -77,7 +77,9 @@ sequenceDiagram
 ```text
 .
 |-- admin/                         # MYAPP and MIKE setup
+|-- frontend/                      # static browser dashboard for the demo
 |-- initial_schema_sql_scripts/    # reproducible initial schema
+|-- ords/                          # read-only ORDS dashboard API
 |-- reset/                         # reset back to the initial schema
 |-- run/                           # demo runner scripts
 |-- templates/                     # source templates copied into generated projects
@@ -93,6 +95,7 @@ sequenceDiagram
 | `run/create_project.sh` | Initializes the SQLcl Project, installs GitHub Actions templates, and synchronizes it with GitHub. Run once. |
 | `run/configure_github_actions.sh` | Prompts for target database values and configures GitHub Actions secrets. |
 | `run/dev_cycle.sh <cycle_name>` | Captures any development cycle: export, stage, commits, push, and PR. |
+| `run/install_demo_dashboard_api.sh [dev\|prod\|both]` | Installs the read-only ORDS API used by the static demo dashboard. |
 | `run/cleanup_demo.sh` | Cleans the local project, resets development, optionally drops all production schema objects, and optionally resets GitHub. |
 | `admin/01_create_project_control.sql` | Creates the optional production `PROJECT_CONTROL` table used by the controlled deploy workflow. The workflow also creates it automatically if missing. |
 | `reset/01_reset_to_initial_schema.sql` | Reverts v1/v2 changes and restores the initial schema. |
@@ -150,6 +153,7 @@ Capture v2:
 ## Detailed Guides
 
 - [Demo Guide](docs/demo-guide.md)
+- [Demo Dashboard](docs/demo-dashboard.md)
 - [SQLcl Projects CI/CD Flow](docs/sqlcl-projects-cicd-flow.html)
 - [Presenter Notes](docs/presenter-notes.md)
 - [Commands Cheatsheet](docs/commands-cheatsheet.md)

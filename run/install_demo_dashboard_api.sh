@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# Install the read-only ORDS API used by the static demo dashboard.
+
+set -euo pipefail
+
+RED='\033[31m'
+GREEN='\033[32m'
+BLUE='\033[34m'
+YELLOW='\033[33m'
+NC='\033[0m'
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/setup_env.sh"
+
+INSTALL_SQL="$DEMO_HOME/ords/install_demo_dashboard_api.sql"
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo -e "${RED}ERROR: $1 not found in PATH${NC}"
+    exit 1
+  }
+}
+
+usage() {
+  cat <<EOF
+Usage: $0 [dev|prod|both]
+
+Installs the read-only ORDS demo dashboard API.
+
+Defaults:
+  DEV connection:  $DB_CONNECT_DEV
+  PROD connection: $DB_CONNECT_PROD
+  Schema:          $SCHEMA_NAME
+EOF
+}
+
+install_api() {
+  local label="$1"
+  local connection="$2"
+
+  echo ""
+  echo -e "${BLUE}Installing ORDS demo dashboard API in $label using $connection...${NC}"
+  sql -name "$connection" <<EOF
+@$INSTALL_SQL "$SCHEMA_NAME"
+exit
+EOF
+  echo -e "${GREEN}$label ORDS demo dashboard API installed.${NC}"
+}
+
+target="${1:-both}"
+
+case "$target" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  dev|prod|both)
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
+
+require_cmd sql
+
+if [[ ! -f "$INSTALL_SQL" ]]; then
+  echo -e "${RED}ERROR: installer not found: $INSTALL_SQL${NC}"
+  exit 1
+fi
+
+echo ""
+echo -e "${BLUE}SQLcl Projects demo dashboard API installer${NC}"
+echo -e "${YELLOW}Schema: $SCHEMA_NAME${NC}"
+
+if [[ "$target" == "dev" || "$target" == "both" ]]; then
+  install_api "DEV" "$DB_CONNECT_DEV"
+fi
+
+if [[ "$target" == "prod" || "$target" == "both" ]]; then
+  install_api "PROD" "$DB_CONNECT_PROD"
+fi
+
+echo ""
+echo -e "${GREEN}Dashboard API installation complete.${NC}"

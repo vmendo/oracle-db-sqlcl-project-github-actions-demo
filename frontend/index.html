@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MyAppCICD Demo Dashboard</title>
+  <link rel="stylesheet" href="assets/demo-dashboard.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Oracle SQLcl Projects CI/CD</p>
+      <h1 id="dashboard-title">MyAppCICD Demo Dashboard</h1>
+    </div>
+    <div class="header-actions">
+      <label class="switch">
+        <input id="auto-refresh-toggle" type="checkbox">
+        <span>Auto refresh</span>
+      </label>
+      <button id="refresh-button" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <main class="dashboard-shell">
+    <section class="status-strip" aria-label="Dashboard status">
+      <div>
+        <span class="label">Schema</span>
+        <strong id="schema-name">MYAPP</strong>
+      </div>
+      <div>
+        <span class="label">DEV API</span>
+        <strong id="dev-api-status">Not loaded</strong>
+      </div>
+      <div>
+        <span class="label">PROD API</span>
+        <strong id="prod-api-status">Not loaded</strong>
+      </div>
+      <div>
+        <span class="label">Last refresh</span>
+        <strong id="last-refresh">Never</strong>
+      </div>
+    </section>
+
+    <section id="config-warning" class="notice hidden" aria-live="polite"></section>
+
+    <nav class="tabs" aria-label="Dashboard views">
+      <button class="tab is-active" type="button" data-tab="overview">Overview</button>
+      <button class="tab" type="button" data-tab="development">Development</button>
+      <button class="tab" type="button" data-tab="production">Production</button>
+      <button class="tab" type="button" data-tab="compare">Compare</button>
+      <button class="tab" type="button" data-tab="history">Deploy History</button>
+    </nav>
+
+    <section id="tab-overview" class="tab-panel is-active"></section>
+    <section id="tab-development" class="tab-panel"></section>
+    <section id="tab-production" class="tab-panel"></section>
+    <section id="tab-compare" class="tab-panel"></section>
+    <section id="tab-history" class="tab-panel"></section>
+  </main>
+
+  <script src="config.example.js"></script>
+  <script src="config.local.js"></script>
+  <script src="assets/demo-dashboard.js"></script>
+</body>
+</html>
