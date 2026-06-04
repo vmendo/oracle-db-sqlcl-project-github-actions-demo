@@ -143,7 +143,7 @@ Capture v2:
 - Git.
 - GitHub CLI authenticated with `gh auth login`.
 - Saved SQLcl connection named `MIKE[MYAPP]`.
-- Autonomous Database wallet ZIP for the validation database.
+- Autonomous Database wallet ZIP for the production target database.
 - Schema `MYAPP` created and reset to the initial state.
 - Target GitHub repository available for the generated SQLcl Project. The demo defaults to `vmendo/MyAppCICD`; override `GITHUB_USER` and `GITHUB_REPO` if needed.
 
