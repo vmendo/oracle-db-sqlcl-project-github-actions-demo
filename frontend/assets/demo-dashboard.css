@@ -1,17 +1,37 @@
 :root {
   color-scheme: light;
-  --bg: #f5f7fb;
-  --panel: #ffffff;
-  --panel-muted: #f0f4f8;
-  --text: #172033;
-  --muted: #657085;
-  --line: #d8e0ea;
-  --blue: #1f6feb;
-  --green: #1a7f37;
-  --red: #cf222e;
-  --amber: #9a6700;
-  --teal: #007c89;
-  --shadow: 0 14px 30px rgba(23, 32, 51, 0.08);
+  --bg-page: #faf8f6;
+  --bg-card: #ffffff;
+  --bg-header: #312d2a;
+  --bg-nav: #ffffff;
+  --bg-code: #1e2330;
+  --text-primary: #312d2a;
+  --text-secondary: #6b6460;
+  --text-muted: #a09890;
+  --accent: #c74634;
+  --accent-teal: #007b6e;
+  --accent-blue: #0062a3;
+  --border: #e8e0d8;
+  --border-strong: #d0c8c0;
+  --kpi-border: #c74634;
+  --redwood-sand: #f5f0eb;
+  --redwood-clay: #8b4513;
+  --redwood-warm: #fdf6ee;
+  --font-ui: Inter, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(49, 45, 42, 0.1);
+  --bg: var(--bg-page);
+  --panel: var(--bg-card);
+  --panel-muted: var(--redwood-sand);
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --line: var(--border);
+  --blue: var(--accent-blue);
+  --green: #1e7c52;
+  --red: var(--accent);
+  --amber: #d97706;
+  --teal: var(--accent-teal);
 }
 
 * {
@@ -23,7 +43,8 @@ body {
   min-width: 320px;
   background: var(--bg);
   color: var(--text);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -37,16 +58,18 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 24px clamp(18px, 4vw, 44px);
-  border-bottom: 1px solid var(--line);
-  background: #ffffff;
+  padding: 22px clamp(18px, 4vw, 44px);
+  border-bottom: 4px solid var(--accent);
+  background: var(--bg-header);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(49, 45, 42, 0.18);
 }
 
 .eyebrow {
   margin: 0 0 4px;
-  color: var(--teal);
+  color: #f7c8bf;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -67,22 +90,28 @@ h1 {
 button {
   min-height: 38px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: #ffffff;
   color: var(--text);
   cursor: pointer;
 }
 
 button:hover {
-  border-color: #9eb3ce;
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
 }
 
 #refresh-button {
   padding: 0 16px;
-  background: var(--blue);
-  border-color: var(--blue);
+  background: var(--accent);
+  border-color: var(--accent);
   color: #ffffff;
-  font-weight: 700;
+  font-weight: 600;
+}
+
+#refresh-button:hover {
+  background: #a63a2a;
+  border-color: #a63a2a;
 }
 
 .switch {
@@ -90,19 +119,19 @@ button:hover {
   align-items: center;
   gap: 8px;
   min-height: 38px;
-  color: var(--muted);
+  color: #f5f0eb;
   font-size: 14px;
 }
 
 .switch input {
   width: 18px;
   height: 18px;
-  accent-color: var(--blue);
+  accent-color: var(--accent);
 }
 
 .dashboard-shell {
   width: min(1440px, calc(100% - 32px));
-  margin: 24px auto 44px;
+  margin: 22px auto 44px;
 }
 
 .status-strip {
@@ -111,22 +140,23 @@ button:hover {
   gap: 1px;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--line);
+  box-shadow: var(--shadow);
 }
 
 .status-strip > div {
   min-width: 0;
   padding: 14px 16px;
-  background: #ffffff;
+  background: var(--bg-card);
 }
 
 .label {
   display: block;
   margin-bottom: 4px;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -140,10 +170,10 @@ button:hover {
 .notice {
   margin-top: 16px;
   padding: 14px 16px;
-  border: 1px solid #d29922;
-  border-radius: 8px;
-  background: #fff8c5;
-  color: #633c01;
+  border: 1px solid #e0c38a;
+  border-radius: var(--radius);
+  background: #fff8e5;
+  color: var(--redwood-clay);
 }
 
 .hidden {
@@ -161,13 +191,15 @@ button:hover {
   flex: 0 0 auto;
   padding: 0 14px;
   color: var(--muted);
-  font-weight: 700;
+  font-weight: 600;
+  background: var(--bg-nav);
 }
 
 .tab.is-active {
-  background: #eaf2ff;
-  border-color: #8bb8ff;
-  color: #0a3f8f;
+  background: var(--redwood-warm);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 .tab-panel {
@@ -195,7 +227,7 @@ button:hover {
   min-width: 0;
   padding: 18px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--panel);
   box-shadow: var(--shadow);
 }
@@ -203,6 +235,8 @@ button:hover {
 .panel h2,
 .panel h3 {
   margin: 0 0 12px;
+  color: var(--text-primary);
+  font-weight: 500;
   letter-spacing: 0;
 }
 
@@ -224,13 +258,16 @@ button:hover {
   min-width: 0;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-top: 4px solid var(--kpi-border);
+  border-radius: var(--radius);
   background: var(--panel-muted);
 }
 
 .metric strong {
   display: block;
   font-size: 24px;
+  color: var(--text-primary);
+  font-weight: 600;
   letter-spacing: 0;
 }
 
@@ -238,7 +275,7 @@ button:hover {
   display: block;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -248,44 +285,44 @@ button:hover {
   min-height: 24px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #eef2f7;
+  background: var(--redwood-sand);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .badge.ok {
-  background: #dafbe1;
+  background: #e4f4ed;
   color: var(--green);
 }
 
 .badge.warn {
-  background: #fff1bf;
+  background: #fff3d9;
   color: var(--amber);
 }
 
 .badge.bad {
-  background: #ffebe9;
+  background: #fce9e5;
   color: var(--red);
 }
 
 .badge.info {
-  background: #ddf4ff;
-  color: #0969da;
+  background: #e8f2f8;
+  color: var(--accent-blue);
 }
 
 .table-wrap {
   width: 100%;
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 
 table {
   width: 100%;
   min-width: 720px;
   border-collapse: collapse;
-  background: #ffffff;
+  background: var(--bg-card);
 }
 
 th,
@@ -297,10 +334,10 @@ td {
 }
 
 th {
-  background: #f0f4f8;
+  background: var(--redwood-warm);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -327,9 +364,9 @@ tr:last-child td {
   min-height: 84px;
   padding: 12px;
   border: 1px solid var(--line);
-  border-top: 4px solid var(--blue);
-  border-radius: 8px;
-  background: #ffffff;
+  border-top: 4px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--bg-card);
 }
 
 .timeline-step strong {
@@ -344,9 +381,9 @@ tr:last-child td {
 
 .empty-state {
   padding: 22px;
-  border: 1px dashed #9eb3ce;
-  border-radius: 8px;
-  background: #ffffff;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--redwood-warm);
   color: var(--muted);
 }
 
