@@ -97,6 +97,7 @@ sequenceDiagram
 | `run/dev_cycle.sh <cycle_name>` | Captures any development cycle: export, stage, commits, push, and PR. |
 | `run/install_demo_dashboard_api.sh [dev\|prod\|both]` | Installs the read-only ORDS API used by the static demo dashboard. |
 | `run/configure_demo_dashboard.sh` | Generates the local ignored frontend configuration file. |
+| `run/configure_demo_dashboard_cors.sh [dev\|prod\|both]` | Updates ORDS CORS origins for the dashboard without reinstalling handlers. |
 | `run/start_demo_dashboard.sh` | Configures the dashboard on first run and starts the local HTTP server. |
 | `run/cleanup_demo.sh` | Cleans the local project, resets development, optionally drops all production schema objects, and optionally resets GitHub. |
 | `admin/01_create_project_control.sql` | Creates the optional production `PROJECT_CONTROL` table used by the controlled deploy workflow. The workflow also creates it automatically if missing. |

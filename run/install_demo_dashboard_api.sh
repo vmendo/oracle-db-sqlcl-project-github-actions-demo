@@ -41,6 +41,7 @@ Configurable with environment variables:
   DEMO_DASHBOARD_DEV_API_BASE_URL
   DEMO_DASHBOARD_PROD_API_BASE_URL
   DEMO_DASHBOARD_REFRESH_SECONDS
+  DEMO_DASHBOARD_ALLOWED_ORIGINS
 EOF
 }
 
@@ -94,6 +95,15 @@ health_url() {
   fi
 
   printf '%s/health/\n' "${api_base_url%/}"
+}
+
+allowed_origins() {
+  if [[ -n "$DEMO_DASHBOARD_ALLOWED_ORIGINS" ]]; then
+    printf '%s' "$DEMO_DASHBOARD_ALLOWED_ORIGINS"
+    return
+  fi
+
+  printf 'http://localhost:%s,http://127.0.0.1:%s' "$DEMO_DASHBOARD_PORT" "$DEMO_DASHBOARD_PORT"
 }
 
 explain_autonomous_url() {
@@ -160,11 +170,12 @@ install_api() {
   local label="$1"
   local connection="$2"
   local api_base_url="$3"
+  local cors_origins="$4"
 
   echo ""
   echo -e "${BLUE}Installing ORDS demo dashboard API in $label using $connection...${NC}"
   sql -name "$connection" <<EOF
-@$INSTALL_SQL "$SCHEMA_NAME"
+@$INSTALL_SQL "$SCHEMA_NAME" "$cors_origins"
 exit
 EOF
   echo -e "${GREEN}$label ORDS demo dashboard API installed.${NC}"
@@ -203,6 +214,8 @@ echo -e "${BLUE}SQLcl Projects demo dashboard API installer${NC}"
 echo -e "${YELLOW}Schema: $SCHEMA_NAME${NC}"
 
 explain_autonomous_url
+cors_origins="$(allowed_origins)"
+echo -e "${YELLOW}Allowed browser origins: $cors_origins${NC}"
 
 if [[ "$target" == "dev" || "$target" == "both" ]]; then
   DEMO_DASHBOARD_DEV_API_BASE_URL="$(collect_api_url "DEV" "$DEMO_DASHBOARD_DEV_API_BASE_URL")"
@@ -216,11 +229,11 @@ export DEMO_DASHBOARD_DEV_API_BASE_URL
 export DEMO_DASHBOARD_PROD_API_BASE_URL
 
 if [[ "$target" == "dev" || "$target" == "both" ]]; then
-  install_api "DEV" "$DB_CONNECT_DEV" "$DEMO_DASHBOARD_DEV_API_BASE_URL"
+  install_api "DEV" "$DB_CONNECT_DEV" "$DEMO_DASHBOARD_DEV_API_BASE_URL" "$cors_origins"
 fi
 
 if [[ "$target" == "prod" || "$target" == "both" ]]; then
-  install_api "PROD" "$DB_CONNECT_PROD" "$DEMO_DASHBOARD_PROD_API_BASE_URL"
+  install_api "PROD" "$DB_CONNECT_PROD" "$DEMO_DASHBOARD_PROD_API_BASE_URL" "$cors_origins"
 fi
 
 echo ""

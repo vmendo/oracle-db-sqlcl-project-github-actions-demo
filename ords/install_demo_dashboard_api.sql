@@ -2,12 +2,15 @@ WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK
 WHENEVER OSERROR EXIT 9 ROLLBACK
 
 SET DEFINE ON
+SET VERIFY OFF
 SET SERVEROUTPUT ON
 SET FEEDBACK ON
 
 DEFINE TARGET_SCHEMA = "&1"
+DEFINE ALLOWED_ORIGINS = "&2"
 
 PROMPT Installing read-only ORDS demo dashboard API in &&TARGET_SCHEMA
+PROMPT Allowed browser origins: &&ALLOWED_ORIGINS
 
 DECLARE
   l_expected_schema VARCHAR2(128) := UPPER('&&TARGET_SCHEMA');
@@ -488,7 +491,7 @@ END;
           p_origins_allowed => :origins_allowed
         );
       END;
-    ]' USING l_module_name, '*';
+    ]' USING l_module_name, '&&ALLOWED_ORIGINS';
   EXCEPTION
     WHEN OTHERS THEN
       DBMS_OUTPUT.PUT_LINE('CORS origin configuration skipped: ' || SQLERRM);
@@ -500,5 +503,6 @@ END;
 /
 
 UNDEFINE TARGET_SCHEMA
+UNDEFINE ALLOWED_ORIGINS
 
 PROMPT ORDS demo dashboard API installation complete

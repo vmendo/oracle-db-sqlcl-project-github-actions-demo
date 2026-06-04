@@ -39,6 +39,19 @@ export DEMO_DASHBOARD_DEV_API_BASE_URL="https://<dev-ords-host>/ords/myapp/demo-
 export DEMO_DASHBOARD_PROD_API_BASE_URL="https://<prod-ords-host>/ords/myapp/demo-dashboard"
 ```
 
+The installer configures CORS for:
+
+```text
+http://localhost:8088,http://127.0.0.1:8088
+```
+
+To repair or change CORS later:
+
+```bash
+cd /home/opc/mcp_demos/oracle-db-sqlcl-project-github-actions-demo/run
+./configure_demo_dashboard_cors.sh both
+```
+
 ## Endpoints
 
 | Endpoint | Purpose |

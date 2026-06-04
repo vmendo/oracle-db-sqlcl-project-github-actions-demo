@@ -7,8 +7,10 @@ SET SERVEROUTPUT ON
 SET FEEDBACK ON
 
 DEFINE TARGET_SCHEMA = "&1"
+DEFINE ALLOWED_ORIGINS = "&2"
 
-PROMPT Removing ORDS demo dashboard API from &&TARGET_SCHEMA
+PROMPT Configuring ORDS demo dashboard CORS in &&TARGET_SCHEMA
+PROMPT Allowed browser origins: &&ALLOWED_ORIGINS
 
 DECLARE
   l_expected_schema VARCHAR2(128) := UPPER('&&TARGET_SCHEMA');
@@ -17,25 +19,23 @@ BEGIN
   IF l_session_user <> l_expected_schema THEN
     RAISE_APPLICATION_ERROR(
       -20000,
-      'Refusing to remove ORDS dashboard API. Connected user is ' || l_session_user || ', expected ' || l_expected_schema || '.'
+      'Refusing to configure ORDS dashboard CORS. Connected user is ' || l_session_user || ', expected ' || l_expected_schema || '.'
     );
   END IF;
 
   EXECUTE IMMEDIATE 'ALTER SESSION SET CURRENT_SCHEMA = ' || DBMS_ASSERT.SIMPLE_SQL_NAME(l_expected_schema);
-END;
-/
 
-BEGIN
-  ORDS.DELETE_MODULE(p_module_name => 'myapp.demo_dashboard');
+  ORDS.SET_MODULE_ORIGINS_ALLOWED(
+    p_module_name     => 'myapp.demo_dashboard',
+    p_origins_allowed => '&&ALLOWED_ORIGINS'
+  );
+
   COMMIT;
-  DBMS_OUTPUT.PUT_LINE('Removed ORDS module myapp.demo_dashboard.');
-EXCEPTION
-  WHEN OTHERS THEN
-    ROLLBACK;
-    DBMS_OUTPUT.PUT_LINE('ORDS module removal skipped: ' || SQLERRM);
+  DBMS_OUTPUT.PUT_LINE('Configured CORS origins for myapp.demo_dashboard.');
 END;
 /
 
 UNDEFINE TARGET_SCHEMA
+UNDEFINE ALLOWED_ORIGINS
 
-PROMPT ORDS demo dashboard API removal complete
+PROMPT ORDS demo dashboard CORS configuration complete
