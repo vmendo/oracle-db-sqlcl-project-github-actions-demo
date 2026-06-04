@@ -80,20 +80,13 @@ export DB_CONNECT_DEV="MIKE[MYAPP]"
 export DB_CONNECT_PROD="MYAPP_PRO"
 ```
 
-For Autonomous Database, set the browser-facing ORDS API base URLs before
-installing or configuring the dashboard if you want the scripts to print the
-exact health endpoints:
+For Autonomous Database, the installer asks for the DEV and PROD ORDS browser
+URLs. Paste the ADB host, a Database Actions URL, or an APEX URL. The script
+normalizes it to `/ords/myapp/demo-dashboard`, prints the health endpoints, and
+generates the ignored `frontend/config.local.js` file.
 
-```bash
-export DEMO_DASHBOARD_DEV_API_BASE_URL="https://<dev-ords-host>/ords/myapp/demo-dashboard"
-export DEMO_DASHBOARD_PROD_API_BASE_URL="https://<prod-ords-host>/ords/myapp/demo-dashboard"
-```
-
-Generate the ignored local frontend config:
-
-```bash
-./configure_demo_dashboard.sh
-```
+Run `./configure_demo_dashboard.sh` only when you need to update the frontend
+URLs without reinstalling the ORDS module.
 
 See `docs/demo-dashboard.md` for frontend configuration and endpoint details.
 

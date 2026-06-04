@@ -44,8 +44,22 @@ prompt_default() {
 
 normalize_api_url() {
   local value="$1"
+  local schema_path
+
+  schema_path="$(echo "$SCHEMA_NAME" | tr '[:upper:]' '[:lower:]')"
+  value="$(printf '%s' "$value" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
   value="${value%/}"
-  printf '%s' "$value"
+
+  if [[ ! "$value" =~ ^https?:// ]]; then
+    value="https://$value"
+  fi
+
+  if [[ "$value" =~ ^(https?://[^/]+)/ords(/.*)?$ ]]; then
+    printf '%s/ords/%s/demo-dashboard' "${BASH_REMATCH[1]}" "$schema_path"
+    return
+  fi
+
+  printf '%s/ords/%s/demo-dashboard' "$value" "$schema_path"
 }
 
 js_escape() {
@@ -61,14 +75,15 @@ echo -e "${BLUE}Static dashboard configuration${NC}"
 echo -e "${YELLOW}Project: $PROJECT_NAME${NC}"
 echo -e "${YELLOW}Schema:  $SCHEMA_NAME${NC}"
 echo ""
-echo "For Autonomous Database, use the ORDS host from Database Actions or APEX."
-echo "The API base URL format is:"
+echo "For Autonomous Database, use the browser URL from Database Actions or APEX."
+echo "You can paste either the ADB host or a longer URL that already contains /ords/."
+echo "The script normalizes it to this API base URL format:"
 echo ""
 echo "  https://<adb-ords-host>/ords/$(echo "$SCHEMA_NAME" | tr '[:upper:]' '[:lower:]')/demo-dashboard"
 echo ""
 
-dev_api_base_url="$(normalize_api_url "$(prompt_default "DEV ORDS API base URL" "$DEMO_DASHBOARD_DEV_API_BASE_URL")")"
-prod_api_base_url="$(normalize_api_url "$(prompt_default "PROD ORDS API base URL" "$DEMO_DASHBOARD_PROD_API_BASE_URL")")"
+dev_api_base_url="$(normalize_api_url "$(prompt_default "DEV Autonomous ORDS host or API URL" "$DEMO_DASHBOARD_DEV_API_BASE_URL")")"
+prod_api_base_url="$(normalize_api_url "$(prompt_default "PROD Autonomous ORDS host or API URL" "$DEMO_DASHBOARD_PROD_API_BASE_URL")")"
 refresh_seconds="$(prompt_default "Auto-refresh seconds" "$DEMO_DASHBOARD_REFRESH_SECONDS")"
 
 if [[ ! "$refresh_seconds" =~ ^[0-9]+$ ]]; then

@@ -44,13 +44,10 @@ Actions or APEX:
 https://<adb-ords-host>/ords/myapp/demo-dashboard
 ```
 
-Set the URLs before installing if you want the installer to print the health
-links when it finishes:
-
-```bash
-export DEMO_DASHBOARD_DEV_API_BASE_URL="https://<dev-ords-host>/ords/myapp/demo-dashboard"
-export DEMO_DASHBOARD_PROD_API_BASE_URL="https://<prod-ords-host>/ords/myapp/demo-dashboard"
-```
+The installer asks for the DEV and PROD Autonomous URLs. Paste either the ADB
+host, a Database Actions URL, or an APEX URL. The script normalizes the value to
+`/ords/myapp/demo-dashboard`, prints the health endpoints, and writes
+`frontend/config.local.js`.
 
 Install the read-only API in both environments:
 
@@ -68,7 +65,11 @@ Install only one environment if needed:
 
 ## Configure the Frontend
 
-Use the helper to generate `frontend/config.local.js`:
+In the normal flow, `install_demo_dashboard_api.sh` generates
+`frontend/config.local.js` automatically.
+
+Use the separate helper only when you need to refresh the frontend URLs without
+reinstalling ORDS:
 
 ```bash
 cd /home/opc/mcp_demos/oracle-db-sqlcl-project-github-actions-demo/run
