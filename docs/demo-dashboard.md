@@ -21,6 +21,7 @@ ords/
 run/
   install_demo_dashboard_api.sh
   configure_demo_dashboard.sh
+  start_demo_dashboard.sh
   uninstall_demo_dashboard_api.sh
 ```
 
@@ -106,21 +107,27 @@ cp config.example.js config.local.js
 
 ## Open the Dashboard
 
-Use any static web server. For example:
+Use the runner script:
 
 ```bash
-cd /home/opc/mcp_demos/oracle-db-sqlcl-project-github-actions-demo/frontend
-python3 -m http.server 8088
+cd /home/opc/mcp_demos/oracle-db-sqlcl-project-github-actions-demo/run
+./start_demo_dashboard.sh
 ```
 
-Then open:
+On the first run, it prompts for DEV and PROD ORDS URLs, writes
+`frontend/config.local.js`, starts the HTTP server, and prints the browser URL:
 
 ```text
 http://localhost:8088
 ```
 
+Later runs reuse `frontend/config.local.js` and start the HTTP server directly.
+Use `./start_demo_dashboard.sh --reconfigure` to update the saved URLs.
+
 Serving the files over HTTP avoids browser restrictions that can appear with
-`file://` URLs.
+`file://` URLs. The default bind address is `127.0.0.1`; override it with
+`DEMO_DASHBOARD_BIND` or `--bind` if the browser must connect from another
+machine.
 
 ## Data Sources
 

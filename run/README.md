@@ -13,6 +13,7 @@ and deployment are deferred to GitHub Actions in the next phase.
 - `dev_cycle.sh` - reusable development cycle: export, stage, commit, push, PR.
 - `install_demo_dashboard_api.sh` - installs the read-only ORDS dashboard API in DEV, PROD, or both.
 - `configure_demo_dashboard.sh` - generates `frontend/config.local.js` with DEV and PROD ORDS URLs.
+- `start_demo_dashboard.sh` - configures the frontend on first run and starts the local HTTP server.
 - `uninstall_demo_dashboard_api.sh` - removes the read-only ORDS dashboard API.
 - `cleanup_demo.sh` - local cleanup, development reset, optional production schema reset, and optional remote reset.
 
@@ -85,8 +86,18 @@ URLs. Paste the ADB host, a Database Actions URL, or an APEX URL. The script
 normalizes it to `/ords/myapp/demo-dashboard`, prints the health endpoints, and
 generates the ignored `frontend/config.local.js` file.
 
+Start the browser dashboard:
+
+```bash
+./start_demo_dashboard.sh
+```
+
+The first run prompts for the DEV and PROD ORDS URLs and saves them in the
+ignored `frontend/config.local.js` file. Later runs start the HTTP server
+directly. Use `./start_demo_dashboard.sh --reconfigure` to change the URLs.
+
 Run `./configure_demo_dashboard.sh` only when you need to update the frontend
-URLs without reinstalling the ORDS module.
+URLs without reinstalling the ORDS module or starting the server.
 
 See `docs/demo-dashboard.md` for frontend configuration and endpoint details.
 
