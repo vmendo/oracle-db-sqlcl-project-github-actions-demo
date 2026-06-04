@@ -12,6 +12,7 @@ and deployment are deferred to GitHub Actions in the next phase.
 - `configure_github_actions.sh` - interactive GitHub Actions secrets setup.
 - `dev_cycle.sh` - reusable development cycle: export, stage, commit, push, PR.
 - `install_demo_dashboard_api.sh` - installs the read-only ORDS dashboard API in DEV, PROD, or both.
+- `configure_demo_dashboard.sh` - generates `frontend/config.local.js` with DEV and PROD ORDS URLs.
 - `uninstall_demo_dashboard_api.sh` - removes the read-only ORDS dashboard API.
 - `cleanup_demo.sh` - local cleanup, development reset, optional production schema reset, and optional remote reset.
 
@@ -70,6 +71,28 @@ visibility during the demo:
 
 ```bash
 ./install_demo_dashboard_api.sh both
+```
+
+The installer uses the configurable SQLcl connections from `setup_env.sh`:
+
+```bash
+export DB_CONNECT_DEV="MIKE[MYAPP]"
+export DB_CONNECT_PROD="MYAPP_PRO"
+```
+
+For Autonomous Database, set the browser-facing ORDS API base URLs before
+installing or configuring the dashboard if you want the scripts to print the
+exact health endpoints:
+
+```bash
+export DEMO_DASHBOARD_DEV_API_BASE_URL="https://<dev-ords-host>/ords/myapp/demo-dashboard"
+export DEMO_DASHBOARD_PROD_API_BASE_URL="https://<prod-ords-host>/ords/myapp/demo-dashboard"
+```
+
+Generate the ignored local frontend config:
+
+```bash
+./configure_demo_dashboard.sh
 ```
 
 See `docs/demo-dashboard.md` for frontend configuration and endpoint details.

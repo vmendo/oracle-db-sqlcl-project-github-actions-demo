@@ -96,6 +96,7 @@ sequenceDiagram
 | `run/configure_github_actions.sh` | Prompts for target database values and configures GitHub Actions secrets. |
 | `run/dev_cycle.sh <cycle_name>` | Captures any development cycle: export, stage, commits, push, and PR. |
 | `run/install_demo_dashboard_api.sh [dev\|prod\|both]` | Installs the read-only ORDS API used by the static demo dashboard. |
+| `run/configure_demo_dashboard.sh` | Generates the local ignored frontend configuration file. |
 | `run/cleanup_demo.sh` | Cleans the local project, resets development, optionally drops all production schema objects, and optionally resets GitHub. |
 | `admin/01_create_project_control.sql` | Creates the optional production `PROJECT_CONTROL` table used by the controlled deploy workflow. The workflow also creates it automatically if missing. |
 | `reset/01_reset_to_initial_schema.sql` | Reverts v1/v2 changes and restores the initial schema. |

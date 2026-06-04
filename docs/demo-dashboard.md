@@ -20,6 +20,7 @@ ords/
 
 run/
   install_demo_dashboard_api.sh
+  configure_demo_dashboard.sh
   uninstall_demo_dashboard_api.sh
 ```
 
@@ -27,6 +28,29 @@ run/
 URLs that are local to the demo installation.
 
 ## Install the ORDS API
+
+The installer uses the SQLcl connections configured in `run/setup_env.sh`.
+Override them from the shell if your saved connection names are different:
+
+```bash
+export DB_CONNECT_DEV="MIKE[MYAPP]"
+export DB_CONNECT_PROD="MYAPP_PRO"
+```
+
+For Autonomous Database, the API URL is based on the ORDS host used by Database
+Actions or APEX:
+
+```text
+https://<adb-ords-host>/ords/myapp/demo-dashboard
+```
+
+Set the URLs before installing if you want the installer to print the health
+links when it finishes:
+
+```bash
+export DEMO_DASHBOARD_DEV_API_BASE_URL="https://<dev-ords-host>/ords/myapp/demo-dashboard"
+export DEMO_DASHBOARD_PROD_API_BASE_URL="https://<prod-ords-host>/ords/myapp/demo-dashboard"
+```
 
 Install the read-only API in both environments:
 
@@ -44,14 +68,20 @@ Install only one environment if needed:
 
 ## Configure the Frontend
 
-Create a local config file from the example:
+Use the helper to generate `frontend/config.local.js`:
 
 ```bash
-cd /home/opc/mcp_demos/oracle-db-sqlcl-project-github-actions-demo/frontend
-cp config.example.js config.local.js
+cd /home/opc/mcp_demos/oracle-db-sqlcl-project-github-actions-demo/run
+./configure_demo_dashboard.sh
 ```
 
-Edit `config.local.js` and set the real ORDS base URLs:
+It prompts for:
+
+- DEV ORDS API base URL
+- PROD ORDS API base URL
+- auto-refresh interval
+
+The generated file looks like this:
 
 ```javascript
 window.DEMO_DASHBOARD_CONFIG = {
@@ -65,6 +95,13 @@ window.DEMO_DASHBOARD_CONFIG = {
 
 If `refreshSeconds` is greater than zero, the auto-refresh toggle uses that
 interval.
+
+You can also create the file manually by copying the example:
+
+```bash
+cd /home/opc/mcp_demos/oracle-db-sqlcl-project-github-actions-demo/frontend
+cp config.example.js config.local.js
+```
 
 ## Open the Dashboard
 

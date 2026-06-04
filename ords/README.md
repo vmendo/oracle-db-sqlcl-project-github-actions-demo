@@ -15,6 +15,13 @@ The script uses the saved SQLcl connections from `run/setup_env.sh`:
 - `DB_CONNECT_DEV`, default `MIKE[MYAPP]`
 - `DB_CONNECT_PROD`, default `MYAPP_PRO`
 
+Override them from the shell when needed:
+
+```bash
+export DB_CONNECT_DEV="MY_DEV_CONNECTION"
+export DB_CONNECT_PROD="MY_PROD_CONNECTION"
+```
+
 The installed module base path is:
 
 ```text
@@ -23,6 +30,14 @@ The installed module base path is:
 
 Use different host names for development and production in the frontend
 configuration.
+
+For Autonomous Database, set these optional variables so the installer can print
+the exact health links after installation:
+
+```bash
+export DEMO_DASHBOARD_DEV_API_BASE_URL="https://<dev-ords-host>/ords/myapp/demo-dashboard"
+export DEMO_DASHBOARD_PROD_API_BASE_URL="https://<prod-ords-host>/ords/myapp/demo-dashboard"
+```
 
 ## Endpoints
 
