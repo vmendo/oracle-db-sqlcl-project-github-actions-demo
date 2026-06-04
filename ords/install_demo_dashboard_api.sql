@@ -260,15 +260,42 @@ BEGIN
          )
   INTO   l_items
   FROM (
+    WITH metadata_tables AS (
+      SELECT table_name
+      FROM   user_tables
+      WHERE  table_name = 'PROJECT_CONTROL'
+      OR     table_name LIKE 'DATABASECHANGELOG%'
+      OR     table_name LIKE 'DBTOOLS$%'
+      OR     table_name LIKE 'ORDS$%'
+      OR     table_name LIKE 'ORDS_%'
+    ),
+    metadata_objects AS (
+      SELECT table_name object_name FROM metadata_tables
+      UNION
+      SELECT index_name FROM user_indexes WHERE table_name IN (SELECT table_name FROM metadata_tables)
+      UNION
+      SELECT constraint_name FROM user_constraints WHERE table_name IN (SELECT table_name FROM metadata_tables)
+      UNION
+      SELECT trigger_name FROM user_triggers WHERE table_name IN (SELECT table_name FROM metadata_tables)
+    )
     SELECT object_name,
            object_type,
            status,
            created,
            last_ddl_time,
            CASE
-             WHEN object_name = 'PROJECT_CONTROL'
+             WHEN object_name IN (SELECT object_name FROM metadata_objects)
+               OR object_name = 'PROJECT_CONTROL'
                OR object_name LIKE 'DATABASECHANGELOG%'
                OR object_name LIKE 'DBTOOLS$%'
+               OR object_name LIKE 'ORDS$%'
+               OR object_name LIKE 'ORDS_%'
+               OR object_name LIKE 'SYS_%'
+               OR object_name LIKE 'SYS$%'
+               OR object_name LIKE 'BIN$%'
+               OR object_name LIKE 'MLOG$_%'
+               OR object_name LIKE 'RUPD$_%'
+               OR object_name LIKE 'AQ$%'
              THEN 'DEMO_METADATA'
              ELSE 'APPLICATION'
            END object_group
@@ -356,6 +383,8 @@ BEGIN
              WHEN utc.table_name = 'PROJECT_CONTROL'
                OR utc.table_name LIKE 'DATABASECHANGELOG%'
                OR utc.table_name LIKE 'DBTOOLS$%'
+               OR utc.table_name LIKE 'ORDS$%'
+               OR utc.table_name LIKE 'ORDS_%'
              THEN 'DEMO_METADATA'
              ELSE 'APPLICATION'
            END object_group

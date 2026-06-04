@@ -16,7 +16,11 @@
     prod: null,
     errors: {},
     lastRefresh: null,
-    refreshTimer: null
+    refreshTimer: null,
+    filters: {
+      development: { objectType: "ALL", tableName: "" },
+      production: { objectType: "ALL", tableName: "" }
+    }
   };
 
   const endpoints = ["health", "summary", "objects", "tables", "changelog", "project-control"];
@@ -179,8 +183,8 @@
   }
 
   function renderOverview() {
-    const devSummary = getSummary(state.dev);
-    const prodSummary = getSummary(state.prod);
+    const devObjects = applicationObjects(state.dev);
+    const prodObjects = applicationObjects(state.prod);
     const prodVersion = latestReleaseVersion(state.prod);
     const diff = buildCompareModel();
 
@@ -203,8 +207,8 @@
           </div>
         </div>
         <div class="grid three">
-          ${metricPanel(countObjects(devSummary), "Current schema objects", "DEV Objects")}
-          ${metricPanel(countObjects(prodSummary), "Current schema objects", "PROD Objects")}
+          ${metricPanel(devObjects.length, "Application schema objects", "DEV Objects")}
+          ${metricPanel(prodObjects.length, "Application schema objects", "PROD Objects")}
           ${metricPanel(diff.totalDifferences, "Application differences", "DEV vs PROD Drift")}
         </div>
       </div>
@@ -232,16 +236,16 @@
     }
 
     const health = env.health || {};
-    const summary = getSummary(env);
+    const objects = applicationObjects(env);
     const invalidCount = Number(health.invalidObjectCount || 0);
 
     return `
       <div class="panel">
         <h2>${escapeHtml(label)}</h2>
         <div class="metric-row">
-          ${miniMetric("Tables", getObjectTypeCount(summary, "TABLE"))}
-          ${miniMetric("Views", getObjectTypeCount(summary, "VIEW"))}
-          ${miniMetric("Indexes", getObjectTypeCount(summary, "INDEX"))}
+          ${miniMetric("Tables", countObjectTypeRows(objects, "TABLE"))}
+          ${miniMetric("Views", countObjectTypeRows(objects, "VIEW"))}
+          ${miniMetric("Indexes", countObjectTypeRows(objects, "INDEX"))}
           ${miniMetric("Invalid", invalidCount)}
         </div>
         <p>
@@ -295,25 +299,36 @@
       return;
     }
 
-    const objects = items(env.objects);
-    const tables = items(env.tables).filter((row) => row.objectGroup === "APPLICATION");
+    const objects = applicationObjects(env);
+    const tables = applicationColumns(env);
     const changelog = items(env.changelog);
-    const summary = getSummary(env);
+    const filter = normalizeEnvironmentFilter(panelName, objects, tables);
+    const filteredObjects = filter.objectType === "ALL"
+      ? objects
+      : objects.filter((row) => row.objectType === filter.objectType);
+    const selectedTableColumns = tables.filter((row) => row.tableName === filter.tableName);
 
     panel.innerHTML = `
       <div class="stack">
         <div class="grid three">
-          ${metricPanel(getObjectTypeCount(summary, "TABLE"), "Application and metadata tables", "Tables")}
-          ${metricPanel(getObjectTypeCount(summary, "VIEW"), "Current schema views", "Views")}
-          ${metricPanel(getObjectTypeCount(summary, "INDEX"), "Current schema indexes", "Indexes")}
+          ${metricPanel(countObjectTypeRows(objects, "TABLE"), "Application tables only", "Tables")}
+          ${metricPanel(countObjectTypeRows(objects, "VIEW"), "Application views only", "Views")}
+          ${metricPanel(countObjectTypeRows(objects, "INDEX"), "Application indexes only", "Indexes")}
         </div>
         <div class="panel">
-          <h2>${escapeHtml(label)} Objects</h2>
-          ${renderObjectsTable(objects)}
+          <div class="panel-heading">
+            <h2>${escapeHtml(label)} Objects</h2>
+            ${renderObjectTypeFilter(panelName, objects, filter.objectType)}
+          </div>
+          ${renderObjectsTable(filteredObjects)}
         </div>
         <div class="panel">
-          <h2>${escapeHtml(label)} Table Columns</h2>
-          ${renderColumnsTable(tables)}
+          <div class="panel-heading">
+            <h2>${escapeHtml(label)} Table Columns</h2>
+            ${renderTablePicker(panelName, tables, filter.tableName)}
+          </div>
+          ${renderSelectedTableSummary(filter.tableName, selectedTableColumns)}
+          ${renderColumnsTable(selectedTableColumns)}
         </div>
         <div class="panel">
           <h2>${escapeHtml(label)} SQLcl Project Changelog</h2>
@@ -321,6 +336,16 @@
         </div>
       </div>
     `;
+
+    panel.querySelector(`[data-object-filter="${panelName}"]`)?.addEventListener("change", (event) => {
+      state.filters[panelName].objectType = event.target.value;
+      renderEnvironment(panelName, label, env, error);
+    });
+
+    panel.querySelector(`[data-table-picker="${panelName}"]`)?.addEventListener("change", (event) => {
+      state.filters[panelName].tableName = event.target.value;
+      renderEnvironment(panelName, label, env, error);
+    });
   }
 
   function renderCompare() {
@@ -374,22 +399,66 @@
   function renderObjectsTable(rows) {
     if (rows.length === 0) return empty("No objects returned.");
     return table([
-      "Type", "Name", "Status", "Group", "Last DDL"
+      "Type", "Name", "Status", "Last DDL"
     ], rows.map((row) => [
       row.objectType,
       row.objectName,
       statusBadge(row.status),
-      row.objectGroup,
       row.lastDdlTime
     ]));
+  }
+
+  function renderObjectTypeFilter(panelName, rows, selectedType) {
+    const objectTypes = unique(rows.map((row) => row.objectType));
+    return `
+      <label class="filter-control">
+        <span>Object type</span>
+        <select data-object-filter="${escapeHtml(panelName)}">
+          <option value="ALL"${selectedType === "ALL" ? " selected" : ""}>All application objects</option>
+          ${objectTypes.map((type) => `
+            <option value="${escapeHtml(type)}"${selectedType === type ? " selected" : ""}>${escapeHtml(titleCase(type))}</option>
+          `).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  function renderTablePicker(panelName, rows, selectedTable) {
+    const tableNames = unique(rows.map((row) => row.tableName));
+    if (tableNames.length === 0) return "";
+
+    return `
+      <label class="filter-control">
+        <span>Table</span>
+        <select data-table-picker="${escapeHtml(panelName)}">
+          ${tableNames.map((tableName) => `
+            <option value="${escapeHtml(tableName)}"${selectedTable === tableName ? " selected" : ""}>${escapeHtml(tableName)}</option>
+          `).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  function renderSelectedTableSummary(tableName, rows) {
+    if (!tableName) return empty("No application table is available.");
+    const primaryKeys = rows.filter((row) => row.isPrimaryKey === "Y").length;
+    const foreignKeys = rows.filter((row) => row.isForeignKey === "Y").length;
+
+    return `
+      <div class="selection-summary">
+        <strong>${escapeHtml(tableName)}</strong>
+        <span>${escapeHtml(String(rows.length))} columns</span>
+        <span>${escapeHtml(String(primaryKeys))} PK columns</span>
+        <span>${escapeHtml(String(foreignKeys))} FK columns</span>
+      </div>
+    `;
   }
 
   function renderColumnsTable(rows) {
     if (rows.length === 0) return empty("No table columns returned.");
     return table([
-      "Table", "Column", "Type", "Nullable", "PK", "FK"
+      "Column", "Type", "Nullable", "PK", "FK"
     ], rows.map((row) => [
-      row.tableName,
       row.columnName,
       row.dataTypeDisplay,
       row.nullable,
@@ -528,7 +597,63 @@
   }
 
   function applicationColumns(env) {
-    return items(env && env.tables).filter((row) => row.objectGroup === "APPLICATION");
+    return items(env && env.tables).filter(isApplicationTableColumn);
+  }
+
+  function applicationObjects(env) {
+    return items(env && env.objects).filter(isApplicationObject);
+  }
+
+  function isApplicationTableColumn(row) {
+    const tableName = String(row && row.tableName || "");
+    return row
+      && row.objectGroup === "APPLICATION"
+      && !isDemoMetadataName(tableName)
+      && !isSystemGeneratedName(tableName);
+  }
+
+  function isApplicationObject(row) {
+    const objectName = String(row && row.objectName || "");
+    return row
+      && row.objectGroup === "APPLICATION"
+      && !isDemoMetadataName(objectName)
+      && !isSystemGeneratedName(objectName);
+  }
+
+  function isDemoMetadataName(name) {
+    const normalized = String(name || "").toUpperCase();
+    return normalized.includes("PROJECT_CONTROL")
+      || normalized.includes("DATABASECHANGELOG")
+      || normalized.includes("DBTOOLS$")
+      || normalized.startsWith("ORDS_")
+      || normalized.startsWith("ORDS$");
+  }
+
+  function isSystemGeneratedName(name) {
+    const normalized = String(name || "").toUpperCase();
+    return normalized.startsWith("SYS_")
+      || normalized.startsWith("SYS$")
+      || normalized.startsWith("BIN$")
+      || normalized.startsWith("MLOG$_")
+      || normalized.startsWith("RUPD$_")
+      || normalized.startsWith("AQ$");
+  }
+
+  function normalizeEnvironmentFilter(panelName, objects, tables) {
+    const filter = state.filters[panelName] || { objectType: "ALL", tableName: "" };
+    const objectTypes = unique(objects.map((row) => row.objectType));
+    const tableNames = unique(tables.map((row) => row.tableName));
+
+    if (filter.objectType !== "ALL" && !objectTypes.includes(filter.objectType)) {
+      filter.objectType = "ALL";
+    }
+
+    if (!filter.tableName || !tableNames.includes(filter.tableName)) {
+      filter.tableName = tableNames[0] || "";
+    }
+
+    state.filters[panelName] = filter;
+    return filter;
   }
 
   function columnMap(rows) {
@@ -551,10 +676,6 @@
     return left.filter((value) => !rightSet.has(value));
   }
 
-  function getSummary(env) {
-    return (env && env.summary) || {};
-  }
-
   function items(payload) {
     if (!payload) return [];
     if (Array.isArray(payload)) return payload;
@@ -562,13 +683,16 @@
     return [];
   }
 
-  function countObjects(summary) {
-    return items(summary.objectCounts).reduce((total, row) => total + Number(row.totalCount || 0), 0);
+  function countObjectTypeRows(rows, type) {
+    return rows.filter((row) => row.objectType === type).length;
   }
 
-  function getObjectTypeCount(summary, type) {
-    const row = items(summary.objectCounts).find((item) => item.objectType === type);
-    return Number(row && row.totalCount || 0);
+  function titleCase(value) {
+    return String(value || "")
+      .toLowerCase()
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
   }
 
   function latestReleaseVersion(env) {

@@ -182,10 +182,16 @@ GitHub deployment metadata is shown only when it has been recorded in
 
 - `Overview` shows DEV and PROD health, object counts, current production
   release, and the demo lifecycle.
-- `Development` shows current DEV objects, table columns, and changelog rows.
-- `Production` shows current PROD objects, table columns, and changelog rows.
+- `Development` shows current DEV application objects, table columns, and changelog rows.
+- `Production` shows current PROD application objects, table columns, and changelog rows.
 - `Compare` calculates application table and column drift in the browser.
 - `Deploy History` shows rows from production `PROJECT_CONTROL`.
 
-`PROJECT_CONTROL`, `DATABASECHANGELOG%`, and `DBTOOLS$%` objects are classified
-as `DEMO_METADATA`. The compare view focuses on `APPLICATION` objects.
+The environment tabs hide demo metadata and system-generated objects from the
+main object list. Use the object type filter to switch between tables, views,
+indexes, and other application objects. Use the table selector to inspect one
+table's columns at a time.
+
+`PROJECT_CONTROL`, `DATABASECHANGELOG%`, `DBTOOLS$%`, and ORDS helper objects
+are classified as `DEMO_METADATA`. The compare view focuses on `APPLICATION`
+objects.
