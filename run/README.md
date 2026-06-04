@@ -48,6 +48,10 @@ saved SQLcl connection name on the runner.
 SQLcl connection names. To avoid SQLcl warning noise during local `project
 export` and `project stage`, the script temporarily sets `sqlcl.connectionName`
 to the development connection and restores the empty value before each commit.
+For the known demo rename `EXPENSES.VENDOR_NAME` to `EXPENSES.PAYEE_NAME`, the
+script rewrites SQLcl's cautious generated add/drop pattern into an explicit
+`RENAME COLUMN` changeset before committing staged changelogs. This preserves
+existing values and avoids leaving both columns in production.
 
 `create_project.sh` offers to configure the target database secrets before the
 first development branch is pushed. The initial scaffold push to `main` does not
