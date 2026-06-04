@@ -196,6 +196,52 @@ select:focus {
   display: none !important;
 }
 
+.tech-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--line);
+  box-shadow: var(--shadow);
+}
+
+.tech-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--bg-card);
+}
+
+.tech-item img {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+}
+
+.tech-item strong,
+.tech-item span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tech-item strong {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tech-item span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 .tabs {
   display: flex;
   gap: 8px;
@@ -491,6 +537,7 @@ tr.is-selected td {
   }
 
   .status-strip,
+  .tech-strip,
   .grid.two,
   .grid.three,
   .metric-row {
@@ -509,6 +556,7 @@ tr.is-selected td {
   }
 
   .status-strip,
+  .tech-strip,
   .grid.two,
   .grid.three,
   .metric-row,

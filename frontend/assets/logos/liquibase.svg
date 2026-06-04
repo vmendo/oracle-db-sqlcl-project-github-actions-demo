@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Liquibase</title>
+  <rect width="64" height="64" rx="12" fill="#fdf6ee"/>
+  <ellipse cx="32" cy="17" rx="18" ry="8" fill="#00a6a6"/>
+  <path d="M14 17v13c0 4 8 8 18 8s18-4 18-8V17" fill="#007b6e"/>
+  <ellipse cx="32" cy="30" rx="18" ry="8" fill="#23c7c7"/>
+  <path d="M14 30v13c0 4 8 8 18 8s18-4 18-8V30" fill="#0062a3"/>
+  <ellipse cx="32" cy="43" rx="18" ry="8" fill="#4fb3ff"/>
+  <path d="M23 17c3 2 15 2 18 0M23 30c3 2 15 2 18 0M23 43c3 2 15 2 18 0" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+</svg>

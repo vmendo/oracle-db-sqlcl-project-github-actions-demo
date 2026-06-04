@@ -13,6 +13,7 @@ frontend/
   config.local.js
   assets/demo-dashboard.css
   assets/demo-dashboard.js
+  assets/logos/
 
 ords/
   install_demo_dashboard_api.sql
@@ -28,6 +29,9 @@ run/
 
 `frontend/config.local.js` is ignored by Git because it contains environment
 URLs that are local to the demo installation.
+
+The dashboard uses local SVG assets for the technology strip, so it does not
+depend on external logo CDNs during the demo.
 
 ## Install the ORDS API
 
