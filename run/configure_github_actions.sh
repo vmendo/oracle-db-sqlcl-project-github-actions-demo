@@ -158,9 +158,9 @@ if ! gh auth status >/dev/null 2>&1; then
 fi
 
 if [[ -n "${TARGET_WALLET_ZIP_DEFAULT:-}" ]]; then
-  wallet_zip="$(normalize_path "$(prompt_default "Path to Autonomous Database wallet ZIP" "$TARGET_WALLET_ZIP_DEFAULT")")"
+  wallet_zip="$(normalize_path "$(prompt_default "Path to production Autonomous Database wallet ZIP" "$TARGET_WALLET_ZIP_DEFAULT")")"
 else
-  wallet_zip="$(normalize_path "$(prompt_required "Path to Autonomous Database wallet ZIP")")"
+  wallet_zip="$(normalize_path "$(prompt_required "Path to production Autonomous Database wallet ZIP")")"
 fi
 
 if [[ ! -f "$wallet_zip" ]]; then

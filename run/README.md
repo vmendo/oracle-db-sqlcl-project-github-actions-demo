@@ -68,11 +68,11 @@ Configure the target database secrets and wallet for GitHub Actions:
 ./configure_github_actions.sh
 ```
 
-The script prompts for the wallet ZIP first. If `TARGET_WALLET_ZIP_DEFAULT` is
-exported in your shell, that value is offered as the default; otherwise the path
-is required interactively. It lists the TNS aliases found in `tnsnames.ora`, and
-then asks for the target user and password. It creates the required repository
-secrets with `gh`.
+The script prompts for the production Autonomous Database wallet ZIP first. If
+`TARGET_WALLET_ZIP_DEFAULT` is exported in your shell, that value is offered as
+the default; otherwise the path is required interactively. It lists the TNS
+aliases found in `tnsnames.ora`, and then asks for the target user and password.
+It creates the required repository secrets with `gh`.
 
 Capture the initial database state:
 
