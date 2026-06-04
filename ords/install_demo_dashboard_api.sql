@@ -106,7 +106,9 @@ BEGIN
 
   OWA_UTIL.MIME_HEADER('application/json', FALSE);
   OWA_UTIL.HTTP_HEADER_CLOSE;
-  HTP.P(l_json);
+  FOR i IN 0 .. FLOOR((DBMS_LOB.GETLENGTH(l_json) - 1) / 30000) LOOP
+    HTP.PRN(DBMS_LOB.SUBSTR(l_json, 30000, (i * 30000) + 1));
+  END LOOP;
 END;
 ~'
   );
@@ -130,10 +132,9 @@ BEGIN
                'invalidCount' VALUE invalid_count
                RETURNING CLOB
              )
-             ORDER BY object_type
              RETURNING CLOB
            ),
-           '[]'
+           TO_CLOB('[]')
          )
   INTO   l_object_counts
   FROM (
@@ -142,6 +143,7 @@ BEGIN
            SUM(CASE WHEN status <> 'VALID' THEN 1 ELSE 0 END) invalid_count
     FROM   user_objects
     GROUP  BY object_type
+    ORDER  BY object_type
   );
 
   SELECT COUNT(*)
@@ -178,7 +180,7 @@ BEGIN
                    FETCH FIRST 1 ROW ONLY
                  )
                ),
-               'null'
+               TO_CLOB('null')
              )
       FROM dual
     ]' INTO l_latest_deployment;
@@ -210,7 +212,7 @@ BEGIN
                    FETCH FIRST 1 ROW ONLY
                  )
                ),
-               'null'
+               TO_CLOB('null')
              )
       FROM dual
     ]' INTO l_latest_changeset;
@@ -229,7 +231,9 @@ BEGIN
 
   OWA_UTIL.MIME_HEADER('application/json', FALSE);
   OWA_UTIL.HTTP_HEADER_CLOSE;
-  HTP.P(l_json);
+  FOR i IN 0 .. FLOOR((DBMS_LOB.GETLENGTH(l_json) - 1) / 30000) LOOP
+    HTP.PRN(DBMS_LOB.SUBSTR(l_json, 30000, (i * 30000) + 1));
+  END LOOP;
 END;
 ~'
   );
@@ -239,28 +243,22 @@ END;
     p_comments => 'Schema objects with application or metadata classification',
     p_source   => q'~
 DECLARE
+  l_items CLOB;
   l_json CLOB;
 BEGIN
-  SELECT JSON_OBJECT(
-           'items' VALUE COALESCE(
-             JSON_ARRAYAGG(
-               JSON_OBJECT(
-                 'objectName' VALUE object_name,
-                 'objectType' VALUE object_type,
-                 'status' VALUE status,
-                 'objectGroup' VALUE object_group,
-                 'created' VALUE TO_CHAR(created, 'YYYY-MM-DD"T"HH24:MI:SS'),
-                 'lastDdlTime' VALUE TO_CHAR(last_ddl_time, 'YYYY-MM-DD"T"HH24:MI:SS')
-                 RETURNING CLOB
-               )
-               ORDER BY object_group, object_type, object_name
-               RETURNING CLOB
-             ),
-             '[]'
-           ) FORMAT JSON
+  SELECT JSON_ARRAYAGG(
+           JSON_OBJECT(
+             'objectName' VALUE object_name,
+             'objectType' VALUE object_type,
+             'status' VALUE status,
+             'objectGroup' VALUE object_group,
+             'created' VALUE TO_CHAR(created, 'YYYY-MM-DD"T"HH24:MI:SS'),
+             'lastDdlTime' VALUE TO_CHAR(last_ddl_time, 'YYYY-MM-DD"T"HH24:MI:SS')
+             RETURNING CLOB
+           )
            RETURNING CLOB
          )
-  INTO   l_json
+  INTO   l_items
   FROM (
     SELECT object_name,
            object_type,
@@ -275,11 +273,23 @@ BEGIN
              ELSE 'APPLICATION'
            END object_group
     FROM   user_objects
+    ORDER  BY object_group, object_type, object_name
   );
+
+  l_items := COALESCE(l_items, TO_CLOB('[]'));
+
+  SELECT JSON_OBJECT(
+           'items' VALUE l_items FORMAT JSON
+           RETURNING CLOB
+         )
+  INTO   l_json
+  FROM   dual;
 
   OWA_UTIL.MIME_HEADER('application/json', FALSE);
   OWA_UTIL.HTTP_HEADER_CLOSE;
-  HTP.P(l_json);
+  FOR i IN 0 .. FLOOR((DBMS_LOB.GETLENGTH(l_json) - 1) / 30000) LOOP
+    HTP.PRN(DBMS_LOB.SUBSTR(l_json, 30000, (i * 30000) + 1));
+  END LOOP;
 END;
 ~'
   );
@@ -289,34 +299,28 @@ END;
     p_comments => 'Table columns, data types, and key flags',
     p_source   => q'~
 DECLARE
+  l_items CLOB;
   l_json CLOB;
 BEGIN
-  SELECT JSON_OBJECT(
-           'items' VALUE COALESCE(
-             JSON_ARRAYAGG(
-               JSON_OBJECT(
-                 'tableName' VALUE table_name,
-                 'columnId' VALUE column_id,
-                 'columnName' VALUE column_name,
-                 'dataType' VALUE data_type,
-                 'dataLength' VALUE data_length,
-                 'dataPrecision' VALUE data_precision,
-                 'dataScale' VALUE data_scale,
-                 'dataTypeDisplay' VALUE data_type_display,
-                 'nullable' VALUE nullable,
-                 'isPrimaryKey' VALUE is_primary_key,
-                 'isForeignKey' VALUE is_foreign_key,
-                 'objectGroup' VALUE object_group
-                 RETURNING CLOB
-               )
-               ORDER BY object_group, table_name, column_id
-               RETURNING CLOB
-             ),
-             '[]'
-           ) FORMAT JSON
+  SELECT JSON_ARRAYAGG(
+           JSON_OBJECT(
+             'tableName' VALUE table_name,
+             'columnId' VALUE column_id,
+             'columnName' VALUE column_name,
+             'dataType' VALUE data_type,
+             'dataLength' VALUE data_length,
+             'dataPrecision' VALUE data_precision,
+             'dataScale' VALUE data_scale,
+             'dataTypeDisplay' VALUE data_type_display,
+             'nullable' VALUE nullable,
+             'isPrimaryKey' VALUE is_primary_key,
+             'isForeignKey' VALUE is_foreign_key,
+             'objectGroup' VALUE object_group
+             RETURNING CLOB
+           )
            RETURNING CLOB
          )
-  INTO   l_json
+  INTO   l_items
   FROM (
     WITH key_columns AS (
       SELECT acc.table_name,
@@ -361,11 +365,23 @@ BEGIN
     LEFT   JOIN key_columns kc
     ON     kc.table_name = utc.table_name
     AND    kc.column_name = utc.column_name
+    ORDER  BY object_group, utc.table_name, utc.column_id
   );
+
+  l_items := COALESCE(l_items, TO_CLOB('[]'));
+
+  SELECT JSON_OBJECT(
+           'items' VALUE l_items FORMAT JSON
+           RETURNING CLOB
+         )
+  INTO   l_json
+  FROM   dual;
 
   OWA_UTIL.MIME_HEADER('application/json', FALSE);
   OWA_UTIL.HTTP_HEADER_CLOSE;
-  HTP.P(l_json);
+  FOR i IN 0 .. FLOOR((DBMS_LOB.GETLENGTH(l_json) - 1) / 30000) LOOP
+    HTP.PRN(DBMS_LOB.SUBSTR(l_json, 30000, (i * 30000) + 1));
+  END LOOP;
 END;
 ~'
   );
@@ -375,7 +391,8 @@ END;
     p_comments => 'SQLcl Project and Liquibase changelog rows',
     p_source   => q'~
 DECLARE
-  l_json        CLOB := '{"items":[]}';
+  l_items       CLOB := TO_CLOB('[]');
+  l_json        CLOB := TO_CLOB('{"items":[]}');
   l_table_count NUMBER;
 BEGIN
   SELECT COUNT(*)
@@ -385,27 +402,20 @@ BEGIN
 
   IF l_table_count > 0 THEN
     EXECUTE IMMEDIATE q'[
-      SELECT JSON_OBJECT(
-               'items' VALUE COALESCE(
-                 JSON_ARRAYAGG(
-                   JSON_OBJECT(
-                     'id' VALUE id,
-                     'author' VALUE author,
-                     'filename' VALUE filename,
-                     'dateExecuted' VALUE TO_CHAR(dateexecuted, 'YYYY-MM-DD"T"HH24:MI:SS'),
-                     'orderExecuted' VALUE orderexecuted,
-                     'execType' VALUE exectype,
-                     'description' VALUE description,
-                     'comments' VALUE comments,
-                     'tag' VALUE tag,
-                     'liquibase' VALUE liquibase
-                     RETURNING CLOB
-                   )
-                   ORDER BY orderexecuted DESC
-                   RETURNING CLOB
-                 ),
-                 '[]'
-               ) FORMAT JSON
+      SELECT JSON_ARRAYAGG(
+               JSON_OBJECT(
+                 'id' VALUE id,
+                 'author' VALUE author,
+                 'filename' VALUE filename,
+                 'dateExecuted' VALUE TO_CHAR(dateexecuted, 'YYYY-MM-DD"T"HH24:MI:SS'),
+                 'orderExecuted' VALUE orderexecuted,
+                 'execType' VALUE exectype,
+                 'description' VALUE description,
+                 'comments' VALUE comments,
+                 'tag' VALUE tag,
+                 'liquibase' VALUE liquibase
+                 RETURNING CLOB
+               )
                RETURNING CLOB
              )
       FROM (
@@ -414,12 +424,23 @@ BEGIN
         ORDER  BY orderexecuted DESC
         FETCH FIRST 80 ROWS ONLY
       )
-    ]' INTO l_json;
+    ]' INTO l_items;
   END IF;
+
+  l_items := COALESCE(l_items, TO_CLOB('[]'));
+
+  SELECT JSON_OBJECT(
+           'items' VALUE l_items FORMAT JSON
+           RETURNING CLOB
+         )
+  INTO   l_json
+  FROM   dual;
 
   OWA_UTIL.MIME_HEADER('application/json', FALSE);
   OWA_UTIL.HTTP_HEADER_CLOSE;
-  HTP.P(l_json);
+  FOR i IN 0 .. FLOOR((DBMS_LOB.GETLENGTH(l_json) - 1) / 30000) LOOP
+    HTP.PRN(DBMS_LOB.SUBSTR(l_json, 30000, (i * 30000) + 1));
+  END LOOP;
 END;
 ~'
   );
@@ -429,7 +450,8 @@ END;
     p_comments => 'Production deployment control history',
     p_source   => q'~
 DECLARE
-  l_json        CLOB := '{"items":[]}';
+  l_items       CLOB := TO_CLOB('[]');
+  l_json        CLOB := TO_CLOB('{"items":[]}');
   l_table_count NUMBER;
 BEGIN
   SELECT COUNT(*)
@@ -439,32 +461,25 @@ BEGIN
 
   IF l_table_count > 0 THEN
     EXECUTE IMMEDIATE q'[
-      SELECT JSON_OBJECT(
-               'items' VALUE COALESCE(
-                 JSON_ARRAYAGG(
-                   JSON_OBJECT(
-                     'projectName' VALUE project_name,
-                     'targetSchema' VALUE target_schema,
-                     'releaseVersion' VALUE release_version,
-                     'releaseTag' VALUE release_tag,
-                     'artifactName' VALUE artifact_name,
-                     'artifactSha256' VALUE artifact_sha256,
-                     'previousReleaseVersion' VALUE previous_release_version,
-                     'deployedAt' VALUE TO_CHAR(deployed_at, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM'),
-                     'deployedBy' VALUE deployed_by,
-                     'githubRepository' VALUE github_repository,
-                     'githubRunId' VALUE github_run_id,
-                     'githubRunAttempt' VALUE github_run_attempt,
-                     'githubSha' VALUE github_sha,
-                     'deployStatus' VALUE deploy_status,
-                     'notes' VALUE notes
-                     RETURNING CLOB
-                   )
-                   ORDER BY deployed_at DESC NULLS LAST
-                   RETURNING CLOB
-                 ),
-                 '[]'
-               ) FORMAT JSON
+      SELECT JSON_ARRAYAGG(
+               JSON_OBJECT(
+                 'projectName' VALUE project_name,
+                 'targetSchema' VALUE target_schema,
+                 'releaseVersion' VALUE release_version,
+                 'releaseTag' VALUE release_tag,
+                 'artifactName' VALUE artifact_name,
+                 'artifactSha256' VALUE artifact_sha256,
+                 'previousReleaseVersion' VALUE previous_release_version,
+                 'deployedAt' VALUE TO_CHAR(deployed_at, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM'),
+                 'deployedBy' VALUE deployed_by,
+                 'githubRepository' VALUE github_repository,
+                 'githubRunId' VALUE github_run_id,
+                 'githubRunAttempt' VALUE github_run_attempt,
+                 'githubSha' VALUE github_sha,
+                 'deployStatus' VALUE deploy_status,
+                 'notes' VALUE notes
+                 RETURNING CLOB
+               )
                RETURNING CLOB
              )
       FROM (
@@ -473,12 +488,23 @@ BEGIN
         ORDER  BY deployed_at DESC NULLS LAST
         FETCH FIRST 50 ROWS ONLY
       )
-    ]' INTO l_json;
+    ]' INTO l_items;
   END IF;
+
+  l_items := COALESCE(l_items, TO_CLOB('[]'));
+
+  SELECT JSON_OBJECT(
+           'items' VALUE l_items FORMAT JSON
+           RETURNING CLOB
+         )
+  INTO   l_json
+  FROM   dual;
 
   OWA_UTIL.MIME_HEADER('application/json', FALSE);
   OWA_UTIL.HTTP_HEADER_CLOSE;
-  HTP.P(l_json);
+  FOR i IN 0 .. FLOOR((DBMS_LOB.GETLENGTH(l_json) - 1) / 30000) LOOP
+    HTP.PRN(DBMS_LOB.SUBSTR(l_json, 30000, (i * 30000) + 1));
+  END LOOP;
 END;
 ~'
   );
