@@ -235,9 +235,8 @@
       `;
     }
 
-    const health = env.health || {};
     const objects = applicationObjects(env);
-    const invalidCount = Number(health.invalidObjectCount || 0);
+    const invalidCount = countInvalidObjects(objects);
 
     return `
       <div class="panel">
@@ -685,6 +684,10 @@
 
   function countObjectTypeRows(rows, type) {
     return rows.filter((row) => row.objectType === type).length;
+  }
+
+  function countInvalidObjects(rows) {
+    return rows.filter((row) => String(row.status || "").toUpperCase() !== "VALID").length;
   }
 
   function titleCase(value) {

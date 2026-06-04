@@ -190,7 +190,8 @@ GitHub deployment metadata is shown only when it has been recorded in
 The environment tabs hide demo metadata and system-generated objects from the
 main object list. Use the object type filter to switch between tables, views,
 indexes, and other application objects. Use the table selector to inspect one
-table's columns at a time.
+table's columns at a time. Object counters, including invalid object counters,
+are scoped to application objects.
 
 `PROJECT_CONTROL`, `DATABASECHANGELOG%`, `DBTOOLS$%`, and ORDS helper objects
 are classified as `DEMO_METADATA`. The compare view focuses on `APPLICATION`

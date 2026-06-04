@@ -97,7 +97,20 @@ BEGIN
              SELECT 1 FROM user_tables WHERE table_name = 'DATABASECHANGELOG'
            ) THEN 'Y' ELSE 'N' END,
            'invalidObjectCount' VALUE (
-             SELECT COUNT(*) FROM user_objects WHERE status <> 'VALID'
+             SELECT COUNT(*)
+             FROM   user_objects
+             WHERE  status <> 'VALID'
+             AND    object_name <> 'PROJECT_CONTROL'
+             AND    object_name NOT LIKE 'DATABASECHANGELOG%'
+             AND    object_name NOT LIKE 'DBTOOLS$%'
+             AND    object_name NOT LIKE 'ORDS$%'
+             AND    object_name NOT LIKE 'ORDS_%'
+             AND    object_name NOT LIKE 'SYS_%'
+             AND    object_name NOT LIKE 'SYS$%'
+             AND    object_name NOT LIKE 'BIN$%'
+             AND    object_name NOT LIKE 'MLOG$_%'
+             AND    object_name NOT LIKE 'RUPD$_%'
+             AND    object_name NOT LIKE 'AQ$%'
            )
            RETURNING CLOB
          )
