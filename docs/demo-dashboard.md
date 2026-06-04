@@ -186,6 +186,9 @@ GitHub deployment metadata is shown only when it has been recorded in
 - `Production` shows current PROD application objects, table columns, and changelog rows.
 - `Compare` calculates application table and column drift in the browser.
 - `Deploy History` shows rows from production `PROJECT_CONTROL`.
+- `Deploy Audit` groups production `DATABASECHANGELOG` rows by SQLcl Project
+  release folder. Select a deploy to inspect the Liquibase changesets applied
+  by that deploy.
 
 The environment tabs hide demo metadata and system-generated objects from the
 main object list. Use the object type filter to switch between tables, views,
@@ -196,3 +199,8 @@ are scoped to application objects.
 `PROJECT_CONTROL`, `DATABASECHANGELOG%`, `DBTOOLS$%`, and ORDS helper objects
 are classified as `DEMO_METADATA`. The compare view focuses on `APPLICATION`
 objects.
+
+When `PROJECT_CONTROL` rows exist, the deploy audit view uses them as additional
+deployment metadata. If `PROJECT_CONTROL` has been truncated during a reset, the
+view still reconstructs the deploy groups from Liquibase `filename` values such
+as `dev_base_release`, `dev_version11`, or `dev_version12`.

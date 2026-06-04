@@ -20,6 +20,9 @@
     filters: {
       development: { objectType: "ALL", tableName: "" },
       production: { objectType: "ALL", tableName: "" }
+    },
+    deployAudit: {
+      selectedKey: ""
     }
   };
 
@@ -43,7 +46,8 @@
       development: document.getElementById("tab-development"),
       production: document.getElementById("tab-production"),
       compare: document.getElementById("tab-compare"),
-      history: document.getElementById("tab-history")
+      history: document.getElementById("tab-history"),
+      audit: document.getElementById("tab-audit")
     };
 
     els.title.textContent = `${config.projectName} Demo Dashboard`;
@@ -174,6 +178,7 @@
     renderEnvironment("production", "PROD", state.prod, state.errors.prod);
     renderCompare();
     renderHistory();
+    renderDeployAudit();
   }
 
   function envStatusText(name) {
@@ -395,6 +400,46 @@
     `;
   }
 
+  function renderDeployAudit() {
+    if (state.errors.prod || !state.prod) {
+      els.panels.audit.innerHTML = `<div class="empty-state">PROD API data are required for deploy audit.</div>`;
+      return;
+    }
+
+    const audit = buildDeployAuditModel();
+    normalizeSelectedDeploy(audit.deploys);
+    const selectedDeploy = audit.deploys.find((deploy) => deploy.key === state.deployAudit.selectedKey);
+    const selectedChanges = selectedDeploy ? audit.changesByDeploy[selectedDeploy.key] || [] : [];
+
+    els.panels.audit.innerHTML = `
+      <div class="stack">
+        <div class="grid three">
+          ${metricPanel(audit.deploys.length, "Liquibase deploy groups in production", "Deploys")}
+          ${metricPanel(audit.totalChanges, "Executed production changesets", "Changesets")}
+          ${metricPanel(selectedChanges.length, selectedDeploy ? selectedDeploy.label : "No deploy selected", "Selected Changes")}
+        </div>
+        <div class="panel">
+          <h2>Production Deploy Audit</h2>
+          ${renderDeployAuditTable(audit.deploys)}
+        </div>
+        <div class="panel">
+          <div class="panel-heading">
+            <h2>Applied Changes</h2>
+            ${selectedDeploy ? `<span class="badge info">${escapeHtml(selectedDeploy.label)}</span>` : ""}
+          </div>
+          ${selectedDeploy ? renderDeployChangeTable(selectedChanges) : empty("Select a deploy to inspect its Liquibase changesets.")}
+        </div>
+      </div>
+    `;
+
+    els.panels.audit.querySelectorAll("[data-deploy-key]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.deployAudit.selectedKey = button.dataset.deployKey;
+        renderDeployAudit();
+      });
+    });
+  }
+
   function renderObjectsTable(rows) {
     if (rows.length === 0) return empty("No objects returned.");
     return table([
@@ -492,6 +537,60 @@
       row.deployedBy,
       row.githubRunId,
       row.githubSha
+    ]));
+  }
+
+  function renderDeployAuditTable(rows) {
+    if (rows.length === 0) return empty("No production Liquibase deploy history found.");
+
+    return `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Deploy</th>
+              <th>Changes</th>
+              <th>First Applied</th>
+              <th>Last Applied</th>
+              <th>Author</th>
+              <th>Source</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((deploy) => `
+              <tr class="${deploy.key === state.deployAudit.selectedKey ? "is-selected" : ""}">
+                <td>
+                  <button class="table-action" type="button" data-deploy-key="${escapeHtml(deploy.key)}">
+                    ${escapeHtml(deploy.label)}
+                  </button>
+                </td>
+                <td>${escapeHtml(String(deploy.changeCount))}</td>
+                <td>${escapeHtml(deploy.firstExecuted)}</td>
+                <td>${escapeHtml(deploy.lastExecuted)}</td>
+                <td>${escapeHtml(deploy.author)}</td>
+                <td>${escapeHtml(deploy.source)}</td>
+                <td>${statusBadge(deploy.status)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderDeployChangeTable(rows) {
+    if (rows.length === 0) return empty("No changesets found for the selected deploy.");
+
+    return table([
+      "Order", "Category", "Object", "File", "Executed", "Type"
+    ], rows.map((row) => [
+      row.orderExecuted,
+      changeCategory(row.filename),
+      changeObjectName(row.filename),
+      row.filename,
+      row.dateExecuted,
+      row.execType
     ]));
   }
 
@@ -593,6 +692,116 @@
       columnDifferences,
       totalDifferences: devOnlyTables.length + prodOnlyTables.length + columnDifferences.length
     };
+  }
+
+  function buildDeployAuditModel() {
+    const changes = items(state.prod && state.prod.changelog)
+      .filter((row) => row && row.filename)
+      .slice()
+      .sort((left, right) => Number(left.orderExecuted || 0) - Number(right.orderExecuted || 0));
+    const projectControl = items(state.prod && state.prod.projectControl);
+    const groups = changes.reduce((map, row) => {
+      const key = deployKeyFromFilename(row.filename);
+      if (!map[key]) map[key] = [];
+      map[key].push(row);
+      return map;
+    }, {});
+    const controlByRelease = projectControl.reduce((map, row) => {
+      deployControlKeys(row).forEach((key) => {
+        map[key] = row;
+      });
+      return map;
+    }, {});
+    const deploys = Object.entries(groups).map(([key, groupRows]) => {
+      const control = controlByRelease[normalizeDeployKey(key)] || null;
+      return {
+        key,
+        label: control && control.releaseVersion ? `Release ${control.releaseVersion}` : deployLabel(key),
+        changeCount: groupRows.length,
+        firstExecuted: groupRows[0] && groupRows[0].dateExecuted || "",
+        lastExecuted: groupRows[groupRows.length - 1] && groupRows[groupRows.length - 1].dateExecuted || "",
+        author: unique(groupRows.map((row) => row.author)).join(", "),
+        source: control && control.artifactName ? control.artifactName : key,
+        status: control && control.deployStatus ? control.deployStatus : groupStatus(groupRows)
+      };
+    }).sort((left, right) => String(right.lastExecuted).localeCompare(String(left.lastExecuted)));
+
+    return {
+      deploys,
+      changesByDeploy: groups,
+      totalChanges: changes.length
+    };
+  }
+
+  function normalizeSelectedDeploy(deploys) {
+    if (deploys.some((deploy) => deploy.key === state.deployAudit.selectedKey)) return;
+    state.deployAudit.selectedKey = deploys[0] ? deploys[0].key : "";
+  }
+
+  function deployKeyFromFilename(filename) {
+    const firstSegment = String(filename || "").split("/")[0];
+    return firstSegment || "unknown";
+  }
+
+  function deployLabel(key) {
+    const value = String(key || "unknown");
+    if (value === "dev_base_release" || value === "base_release") return "Base Release";
+    const versionMatch = value.match(/^dev_version(\d+)$/);
+    if (versionMatch) {
+      const digits = versionMatch[1];
+      return digits.length > 1 ? `Version ${digits.charAt(0)}.${digits.slice(1)}` : `Version ${digits}`;
+    }
+    return titleCase(value.replace(/^dev_/, "").replace(/-/g, "_"));
+  }
+
+  function normalizeDeployKey(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/\.zip$/, "")
+      .replace(/[^a-z0-9]+/g, "");
+  }
+
+  function deployControlKeys(row) {
+    const keys = new Set();
+    [row.releaseVersion, row.releaseTag, row.artifactName].forEach((value) => {
+      const normalized = normalizeDeployKey(value);
+      if (normalized) keys.add(normalized);
+      versionAliasKeys(value).forEach((key) => keys.add(key));
+    });
+    return Array.from(keys);
+  }
+
+  function versionAliasKeys(value) {
+    const match = String(value || "").match(/(\d+(?:\.\d+)+)/);
+    if (!match) return [];
+
+    const parts = match[1].split(".");
+    const aliases = new Set();
+    const fullDigits = parts.join("");
+    aliases.add(`devversion${fullDigits}`);
+    aliases.add(`version${fullDigits}`);
+
+    if (parts.length > 2 && parts[parts.length - 1] === "0") {
+      const trimmedDigits = parts.slice(0, -1).join("");
+      aliases.add(`devversion${trimmedDigits}`);
+      aliases.add(`version${trimmedDigits}`);
+    }
+
+    return Array.from(aliases);
+  }
+
+  function groupStatus(rows) {
+    return rows.some((row) => String(row.execType || "").toUpperCase() !== "EXECUTED") ? "WARNING" : "SUCCESS";
+  }
+
+  function changeCategory(filename) {
+    const parts = String(filename || "").split("/");
+    return titleCase(parts.length > 2 ? parts[2] : "change");
+  }
+
+  function changeObjectName(filename) {
+    const fileName = String(filename || "").split("/").pop() || "";
+    return fileName.replace(/\.sql$/i, "").toUpperCase();
   }
 
   function applicationColumns(env) {

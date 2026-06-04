@@ -415,6 +415,25 @@ tr:last-child td {
   border-bottom: 0;
 }
 
+tr.is-selected td {
+  background: var(--redwood-warm);
+}
+
+.table-action {
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-blue);
+  font-weight: 600;
+  text-align: left;
+}
+
+.table-action:hover {
+  color: var(--accent);
+  box-shadow: none;
+}
+
 .muted {
   color: var(--muted);
 }

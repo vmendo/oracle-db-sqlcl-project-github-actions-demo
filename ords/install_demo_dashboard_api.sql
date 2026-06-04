@@ -464,7 +464,7 @@ BEGIN
         SELECT *
         FROM   databasechangelog
         ORDER  BY orderexecuted DESC
-        FETCH FIRST 80 ROWS ONLY
+        FETCH FIRST 300 ROWS ONLY
       )
     ]' INTO l_items;
   END IF;
