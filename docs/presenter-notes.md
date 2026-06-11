@@ -104,4 +104,4 @@ This version uses only `MIKE` to keep the story focused. A second version can ad
 
 ### "What about internal tooling objects?"
 
-The filter `object_name not like 'DBTOOLS$%'` prevents helper objects such as `DBTOOLS$MCP_LOG` from being exported.
+The project filters prevent helper objects such as `DBTOOLS$MCP_LOG`, deployment control metadata, and ORDS dashboard modules from being exported.

@@ -4,6 +4,8 @@ Reusable Database CI/CD demo using Oracle SQLcl Projects.
 
 This demo shows how a developer can capture Oracle Database model changes, version them in GitHub, generate SQLcl Projects changelogs, validate pull request branches, create release artifacts on demand, and deploy selected artifacts from GitHub Actions.
 
+![Oracle DB SQLcl Project GitHub Actions Demo](docs/assets/demo_image.png)
+
 ## Demo Story
 
 The fictional application, `MYAPP`, manages the operations of a basketball team:
@@ -77,7 +79,9 @@ sequenceDiagram
 ```text
 .
 |-- admin/                         # MYAPP and MIKE setup
+|-- frontend/                      # static browser dashboard for the demo
 |-- initial_schema_sql_scripts/    # reproducible initial schema
+|-- ords/                          # read-only ORDS dashboard API
 |-- reset/                         # reset back to the initial schema
 |-- run/                           # demo runner scripts
 |-- templates/                     # source templates copied into generated projects
@@ -93,6 +97,10 @@ sequenceDiagram
 | `run/create_project.sh` | Initializes the SQLcl Project, installs GitHub Actions templates, and synchronizes it with GitHub. Run once. |
 | `run/configure_github_actions.sh` | Prompts for target database values and configures GitHub Actions secrets. |
 | `run/dev_cycle.sh <cycle_name>` | Captures any development cycle: export, stage, commits, push, and PR. |
+| `run/install_demo_dashboard_api.sh [dev\|prod\|both]` | Installs the read-only ORDS API used by the static demo dashboard. |
+| `run/configure_demo_dashboard.sh` | Generates the local ignored frontend configuration file. |
+| `run/configure_demo_dashboard_cors.sh [dev\|prod\|both]` | Updates ORDS CORS origins for the dashboard without reinstalling handlers. |
+| `run/start_demo_dashboard.sh` | Configures the dashboard on first run and starts the local HTTP server. |
 | `run/cleanup_demo.sh` | Cleans the local project, resets development, optionally drops all production schema objects, and optionally resets GitHub. |
 | `admin/01_create_project_control.sql` | Creates the optional production `PROJECT_CONTROL` table used by the controlled deploy workflow. The workflow also creates it automatically if missing. |
 | `reset/01_reset_to_initial_schema.sql` | Reverts v1/v2 changes and restores the initial schema. |
@@ -150,6 +158,7 @@ Capture v2:
 ## Detailed Guides
 
 - [Demo Guide](docs/demo-guide.md)
+- [Demo Dashboard](docs/demo-dashboard.md)
 - [SQLcl Projects CI/CD Flow](docs/sqlcl-projects-cicd-flow.html)
 - [Presenter Notes](docs/presenter-notes.md)
 - [Commands Cheatsheet](docs/commands-cheatsheet.md)
@@ -165,7 +174,7 @@ Capture v2:
 - The project configuration keeps `sqlcl.connectionName` empty.
 - GitHub Actions uses a direct wallet connection, not a saved SQLcl connection.
 - GitHub Actions files are sourced from `templates/github-actions` and copied into the generated project.
-- Objects matching `DBTOOLS$%` are excluded to avoid capturing internal tooling objects.
+- Objects matching `DBTOOLS$%`, `PROJECT_CONTROL`, and ORDS schema exports are excluded to avoid capturing demo support objects in the application release artifact.
 
 ## Reset
 

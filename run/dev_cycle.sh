@@ -95,6 +95,39 @@ show_tree_or_find() {
   fi
 }
 
+apply_known_stage_adjustments() {
+  local adjusted_count=0
+  local file
+  local tmp_file
+
+  while IFS= read -r file; do
+    if grep -Fq "This script might contain a rename case" "$file" \
+      && grep -Fq "payee_name varchar2(120)" "$file" \
+      && grep -Fq 'DROP ("VENDOR_NAME")' "$file"; then
+
+      tmp_file="$(mktemp)"
+      sed -n '1,3p' "$file" > "$tmp_file"
+      cat >> "$tmp_file" <<'EOF'
+
+-- Demo adjustment:
+-- SQLcl generated a cautious add/drop pattern for VENDOR_NAME -> PAYEE_NAME.
+-- The intended migration is a column rename so existing values are preserved.
+
+ALTER TABLE expenses RENAME COLUMN vendor_name TO payee_name
+/
+EOF
+
+      mv "$tmp_file" "$file"
+      adjusted_count=$((adjusted_count + 1))
+      echo -e "${GREEN}Adjusted staged rename migration: $file${NC}"
+    fi
+  done < <(find "$PROJECT_DIR/dist/releases/next" -path "*/myapp/tables/expenses.sql" -type f -print 2>/dev/null || true)
+
+  if [[ "$adjusted_count" -gt 0 ]]; then
+    echo -e "${GREEN}Applied $adjusted_count known staged rename adjustment(s).${NC}"
+  fi
+}
+
 require_cmd sql
 require_cmd git
 require_cmd gh
@@ -188,6 +221,10 @@ restore_project_config
 echo ""
 echo -e "${BLUE}Generated staged changelogs:${NC}"
 show_tree_or_find "$PROJECT_DIR/dist/releases/next"
+
+echo ""
+echo -e "${BLUE}Applying known demo staged changelog adjustments...${NC}"
+apply_known_stage_adjustments
 
 echo ""
 echo -e "${YELLOW}Review dist/releases/next before committing staged changelogs.${NC}"

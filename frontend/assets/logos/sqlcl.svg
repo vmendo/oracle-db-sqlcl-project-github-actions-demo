@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Oracle SQLcl</title>
+  <rect width="64" height="64" rx="12" fill="#312d2a"/>
+  <rect x="10" y="14" width="44" height="36" rx="5" fill="#1e2330"/>
+  <path d="M18 25l7 7-7 7" fill="none" stroke="#fdf6ee" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M31 40h12" fill="none" stroke="#c74634" stroke-width="4" stroke-linecap="round"/>
+  <path d="M10 14h44v8H10z" fill="#c74634"/>
+</svg>

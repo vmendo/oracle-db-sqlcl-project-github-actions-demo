@@ -3,6 +3,7 @@ projects/
 */projects/
 **/projects/
 run/.demo_selection.env
+frontend/config.local.js
 
 # SQLcl and Liquibase logs
 *.log

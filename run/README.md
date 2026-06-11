@@ -11,6 +11,11 @@ and deployment are deferred to GitHub Actions in the next phase.
 - `create_project.sh` - one-time SQLcl Project bootstrap, GitHub Actions template install, and GitHub sync.
 - `configure_github_actions.sh` - interactive GitHub Actions secrets setup.
 - `dev_cycle.sh` - reusable development cycle: export, stage, commit, push, PR.
+- `install_demo_dashboard_api.sh` - installs the read-only ORDS dashboard API in DEV, PROD, or both.
+- `configure_demo_dashboard.sh` - generates `frontend/config.local.js` with DEV and PROD ORDS URLs.
+- `configure_demo_dashboard_cors.sh` - updates ORDS CORS origins for the dashboard.
+- `start_demo_dashboard.sh` - configures the frontend on first run and starts the local HTTP server.
+- `uninstall_demo_dashboard_api.sh` - removes the read-only ORDS dashboard API.
 - `cleanup_demo.sh` - local cleanup, development reset, optional production schema reset, and optional remote reset.
 
 ## Demo Sequence
@@ -43,6 +48,10 @@ saved SQLcl connection name on the runner.
 SQLcl connection names. To avoid SQLcl warning noise during local `project
 export` and `project stage`, the script temporarily sets `sqlcl.connectionName`
 to the development connection and restores the empty value before each commit.
+For the known demo rename `EXPENSES.VENDOR_NAME` to `EXPENSES.PAYEE_NAME`, the
+script rewrites SQLcl's cautious generated add/drop pattern into an explicit
+`RENAME COLUMN` changeset before committing staged changelogs. This preserves
+existing values and avoids leaving both columns in production.
 
 `create_project.sh` offers to configure the target database secrets before the
 first development branch is pushed. The initial scaffold push to `main` does not
@@ -61,6 +70,57 @@ Environment `production`, and records the deployed version after approval.
 
 Configure required reviewers on the GitHub Environment `production` if the
 controlled deploy job should pause for manual approval.
+
+The optional static dashboard compares DEV and PROD through read-only ORDS
+endpoints. Install the API in both environments when you want browser-based
+visibility during the demo:
+
+```bash
+./install_demo_dashboard_api.sh both
+```
+
+The installer uses the configurable SQLcl connections from `setup_env.sh`:
+
+```bash
+export DB_CONNECT_DEV="MIKE[MYAPP]"
+export DB_CONNECT_PROD="MYAPP_PRO"
+```
+
+For Autonomous Database, the installer asks for the DEV and PROD ORDS browser
+URLs. Paste the ADB host, a Database Actions URL, or an APEX URL. The script
+normalizes it to `/ords/myapp/demo-dashboard`, prints the health endpoints, and
+generates the ignored `frontend/config.local.js` file.
+
+Start the browser dashboard:
+
+```bash
+./start_demo_dashboard.sh
+```
+
+The first run prompts for the DEV and PROD ORDS URLs and saves them in the
+ignored `frontend/config.local.js` file. Later runs start the HTTP server
+directly. Use `./start_demo_dashboard.sh --reconfigure` to change the URLs.
+
+Run `./configure_demo_dashboard.sh` only when you need to update the frontend
+URLs without reinstalling the ORDS module or starting the server.
+
+If the dashboard shows `Failed to fetch` while the `/health/` endpoint works
+when opened directly in the browser, update ORDS CORS:
+
+```bash
+./configure_demo_dashboard_cors.sh both
+```
+
+The default allowed origins are:
+
+```text
+http://localhost:8088,http://127.0.0.1:8088
+```
+
+Override them with `DEMO_DASHBOARD_ALLOWED_ORIGINS` if you serve the dashboard
+from a different host or port.
+
+See `docs/demo-dashboard.md` for frontend configuration and endpoint details.
 
 Configure the target database secrets and wallet for GitHub Actions:
 

@@ -164,6 +164,12 @@ It should contain:
 object_name not like 'DBTOOLS$%',
 ```
 
+The project should also exclude ORDS schema exports:
+
+```text
+export_type != 'ORDS_SCHEMA',
+```
+
 ## Column Rename Appears As Drop/Add
 
 The v1 change renames:
