@@ -4,6 +4,8 @@ The demo dashboard is a static HTML frontend backed by read-only ORDS endpoints.
 It shows the current state of the development and production schemas while the
 SQLcl Projects CI/CD demo progresses.
 
+![Demo dashboard overview](assets/overview.png)
+
 ## Components
 
 ```text
@@ -184,15 +186,26 @@ GitHub deployment metadata is shown only when it has been recorded in
 
 ## Dashboard Views
 
-- `Overview` shows DEV and PROD health, object counts, current production
-  release, and the demo lifecycle.
-- `Development` shows current DEV application objects, table columns, and changelog rows.
-- `Production` shows current PROD application objects, table columns, and changelog rows.
-- `Compare` calculates application object, table, and column drift in the browser.
-- `Deploy History` shows rows from production `PROJECT_CONTROL`.
-- `Deploy Audit` groups production `DATABASECHANGELOG` rows by SQLcl Project
-  release folder. Select a deploy to inspect the Liquibase changesets applied
-  by that deploy.
+`Overview` shows DEV and PROD health, object counts, current production release,
+and the demo lifecycle.
+
+`Development` shows current DEV application objects, table columns, and
+changelog rows.
+
+`Production` shows current PROD application objects, table columns, and
+changelog rows.
+
+`Compare` calculates application object, table, and column drift in the browser.
+
+`Deploy History` shows rows from production `PROJECT_CONTROL`.
+
+![Production deploy history](assets/History.png)
+
+`Deploy Audit` groups production `DATABASECHANGELOG` rows by SQLcl Project
+release folder. Select a deploy to inspect the Liquibase changesets applied by
+that deploy.
+
+![Production deploy audit](assets/Audit.png)
 
 The environment tabs hide demo metadata and system-generated objects from the
 main object list. Use the object type filter to switch between tables, views,
