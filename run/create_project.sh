@@ -205,6 +205,7 @@ echo ""
 echo -e "${BLUE}Adding project export filters...${NC}"
 append_filter_once "object_name not like 'DBTOOLS$%'," "-- Exclude DBTools/MCP support objects from project exports"
 append_filter_once "(object_name is null or object_name != 'PROJECT_CONTROL')," "-- Exclude production deployment control table from project exports"
+append_filter_once "export_type != 'ORDS_SCHEMA'," "-- Exclude ORDS modules owned by the schema; dashboard ORDS is managed outside SQLcl Projects"
 
 echo ""
 echo -e "${BLUE}Creating project README.md...${NC}"
@@ -247,7 +248,7 @@ The validation workflow connects directly to Autonomous Database with
 - Release creation and artifact generation are handled by the manual GitHub Actions release workflow.
 - Deployment is handled by a separate manual GitHub Actions workflow with \`list\`, \`preview\`, and \`deploy\` operations.
 - GitHub Actions workflows are installed by the local demo runner during project creation.
-- Export filters exclude DBTools/MCP support objects such as \`DBTOOLS\$MCP_LOG\` and production deployment metadata such as \`PROJECT_CONTROL\`.
+- Export filters exclude DBTools/MCP support objects such as \`DBTOOLS\$MCP_LOG\`, production deployment metadata such as \`PROJECT_CONTROL\`, and ORDS modules such as the optional demo dashboard API.
 EOF
 
 echo ""

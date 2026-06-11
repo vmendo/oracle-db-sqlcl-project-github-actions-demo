@@ -46,7 +46,7 @@ This script:
 
 - runs `project init`
 - sets `git.defaultBranch=main`
-- adds the `object_name not like 'DBTOOLS$%'` filter
+- adds filters for `DBTOOLS$%`, `PROJECT_CONTROL`, and ORDS schema exports
 - creates the generated SQLcl Project README
 - initializes Git
 - configures the GitHub remote

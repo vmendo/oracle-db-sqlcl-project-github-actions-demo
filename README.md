@@ -172,7 +172,7 @@ Capture v2:
 - The project configuration keeps `sqlcl.connectionName` empty.
 - GitHub Actions uses a direct wallet connection, not a saved SQLcl connection.
 - GitHub Actions files are sourced from `templates/github-actions` and copied into the generated project.
-- Objects matching `DBTOOLS$%` are excluded to avoid capturing internal tooling objects.
+- Objects matching `DBTOOLS$%`, `PROJECT_CONTROL`, and ORDS schema exports are excluded to avoid capturing demo support objects in the application release artifact.
 
 ## Reset
 
