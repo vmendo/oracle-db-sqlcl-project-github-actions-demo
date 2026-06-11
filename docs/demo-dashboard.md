@@ -188,7 +188,7 @@ GitHub deployment metadata is shown only when it has been recorded in
   release, and the demo lifecycle.
 - `Development` shows current DEV application objects, table columns, and changelog rows.
 - `Production` shows current PROD application objects, table columns, and changelog rows.
-- `Compare` calculates application table and column drift in the browser.
+- `Compare` calculates application object, table, and column drift in the browser.
 - `Deploy History` shows rows from production `PROJECT_CONTROL`.
 - `Deploy Audit` groups production `DATABASECHANGELOG` rows by SQLcl Project
   release folder. Select a deploy to inspect the Liquibase changesets applied

@@ -363,9 +363,16 @@
     els.panels.compare.innerHTML = `
       <div class="stack">
         <div class="grid three">
-          ${metricPanel(diff.devOnlyTables.length, "Tables present only in development", "DEV-only tables")}
-          ${metricPanel(diff.prodOnlyTables.length, "Tables present only in production", "PROD-only tables")}
+          ${metricPanel(diff.devOnlyObjects.length, "Objects present only in development", "DEV-only objects")}
+          ${metricPanel(diff.prodOnlyObjects.length, "Objects present only in production", "PROD-only objects")}
           ${metricPanel(diff.columnDifferences.length, "Column-level schema differences", "Column differences")}
+        </div>
+        <div class="panel">
+          <h2>Application Object Drift</h2>
+          ${renderObjectDiffTable([
+            ...diff.devOnlyObjects.map((row) => Object.assign({ scope: "DEV only" }, row)),
+            ...diff.prodOnlyObjects.map((row) => Object.assign({ scope: "PROD only" }, row))
+          ])}
         </div>
         <div class="panel">
           <h2>Application Table Drift</h2>
@@ -612,6 +619,18 @@
     ]));
   }
 
+  function renderObjectDiffTable(rows) {
+    if (rows.length === 0) return empty("No object drift detected.");
+    return table([
+      "Scope", "Type", "Object", "Status"
+    ], rows.map((row) => [
+      row.scope,
+      row.objectType,
+      row.objectName,
+      statusBadge(row.status)
+    ]));
+  }
+
   function table(headers, rows) {
     return `
       <div class="table-wrap">
@@ -643,6 +662,14 @@
   }
 
   function buildCompareModel() {
+    const devObjects = applicationObjects(state.dev);
+    const prodObjects = applicationObjects(state.prod);
+    const devObjectMap = objectMap(devObjects);
+    const prodObjectMap = objectMap(prodObjects);
+    const devOnlyObjects = difference(Object.keys(devObjectMap), Object.keys(prodObjectMap))
+      .map((key) => devObjectMap[key]);
+    const prodOnlyObjects = difference(Object.keys(prodObjectMap), Object.keys(devObjectMap))
+      .map((key) => prodObjectMap[key]);
     const devTables = applicationColumns(state.dev);
     const prodTables = applicationColumns(state.prod);
     const devTableNames = unique(devTables.map((row) => row.tableName));
@@ -687,10 +714,12 @@
     }, []);
 
     return {
+      devOnlyObjects,
+      prodOnlyObjects,
       devOnlyTables,
       prodOnlyTables,
       columnDifferences,
-      totalDifferences: devOnlyTables.length + prodOnlyTables.length + columnDifferences.length
+      totalDifferences: devOnlyObjects.length + prodOnlyObjects.length + devOnlyTables.length + prodOnlyTables.length + columnDifferences.length
     };
   }
 
@@ -824,6 +853,7 @@
     const objectName = String(row && row.objectName || "");
     return row
       && row.objectGroup === "APPLICATION"
+      && row.objectType !== "LOB"
       && !isDemoMetadataName(objectName)
       && !isSystemGeneratedName(objectName);
   }
@@ -841,7 +871,9 @@
     const normalized = String(name || "").toUpperCase();
     return normalized.startsWith("SYS_")
       || normalized.startsWith("SYS$")
+      || normalized.startsWith("SYS_C")
       || normalized.startsWith("BIN$")
+      || normalized.startsWith("ISEQ$$_")
       || normalized.startsWith("MLOG$_")
       || normalized.startsWith("RUPD$_")
       || normalized.startsWith("AQ$");
@@ -867,6 +899,13 @@
   function columnMap(rows) {
     return rows.reduce((map, row) => {
       map[`${row.tableName}.${row.columnName}`] = row;
+      return map;
+    }, {});
+  }
+
+  function objectMap(rows) {
+    return rows.reduce((map, row) => {
+      map[`${row.objectType}.${row.objectName}`] = row;
       return map;
     }, {});
   }

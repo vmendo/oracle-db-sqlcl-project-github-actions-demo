@@ -4,6 +4,8 @@ Reusable Database CI/CD demo using Oracle SQLcl Projects.
 
 This demo shows how a developer can capture Oracle Database model changes, version them in GitHub, generate SQLcl Projects changelogs, validate pull request branches, create release artifacts on demand, and deploy selected artifacts from GitHub Actions.
 
+![Oracle DB SQLcl Project GitHub Actions Demo](docs/assets/demo_image.png)
+
 ## Demo Story
 
 The fictional application, `MYAPP`, manages the operations of a basketball team:
