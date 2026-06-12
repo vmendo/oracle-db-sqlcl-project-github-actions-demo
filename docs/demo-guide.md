@@ -137,6 +137,7 @@ This can:
 - remove the generated SQLcl Project under `MIKE/projects/MyAppCICD`
 - reset the development database schema
 - optionally drop production application and SQLcl Project/Liquibase objects while creating `PROJECT_CONTROL` if needed, keeping it, and truncating its contents
-- optionally reset the GitHub repository
+- optionally reset the GitHub repository, including workflow runs, deployments,
+  non-main branches, releases, and tags
 
 Production and remote cleanup are guarded by separate `y/N` prompts.

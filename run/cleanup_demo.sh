@@ -92,7 +92,7 @@ fi
 
 echo ""
 echo -e "${YELLOW}Optional destructive step: reset GitHub repository $GITHUB_USER/$GITHUB_REPO.${NC}"
-echo -e "${YELLOW}This deletes workflow runs, non-main branches, tags, releases, and force-pushes a clean main branch.${NC}"
+echo -e "${YELLOW}This deletes workflow runs, deployments, non-main branches, tags, releases, and force-pushes a clean main branch.${NC}"
 read -r -p "Reset GitHub repository too? [y/N]: " REMOTE_CONFIRM
 
 case "$REMOTE_CONFIRM" in
@@ -130,6 +130,24 @@ while true; do
     gh run delete "$run_id" --repo "$FULL_REPO" || true
   done
 done
+
+echo -e "${BLUE}Deleting GitHub Deployments...${NC}"
+mapfile -t deployment_ids < <(gh api --paginate "repos/$FULL_REPO/deployments" --jq '.[].id')
+
+if [[ "${#deployment_ids[@]}" -eq 0 ]]; then
+  echo -e "${GREEN}No deployments remain.${NC}"
+else
+  for deployment_id in "${deployment_ids[@]}"; do
+    echo "Deleting deployment: $deployment_id"
+    gh api \
+      -X POST \
+      "repos/$FULL_REPO/deployments/$deployment_id/statuses" \
+      -f state=inactive \
+      -f description="Reset SQLcl Projects demo deployment history" \
+      -F auto_inactive=true >/dev/null || true
+    gh api -X DELETE "repos/$FULL_REPO/deployments/$deployment_id" || true
+  done
+fi
 
 echo -e "${BLUE}Deleting remote branches except $GIT_DEFAULT_BRANCH...${NC}"
 for branch in $(gh api "repos/$FULL_REPO/branches" --jq '.[].name'); do

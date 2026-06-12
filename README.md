@@ -101,7 +101,7 @@ sequenceDiagram
 | `run/configure_demo_dashboard.sh` | Generates the local ignored frontend configuration file. |
 | `run/configure_demo_dashboard_cors.sh [dev\|prod\|both]` | Updates ORDS CORS origins for the dashboard without reinstalling handlers. |
 | `run/start_demo_dashboard.sh` | Configures the dashboard on first run and starts the local HTTP server. |
-| `run/cleanup_demo.sh` | Cleans the local project, resets development, optionally drops all production schema objects, and optionally resets GitHub. |
+| `run/cleanup_demo.sh` | Cleans the local project, resets development, optionally drops all production schema objects, and optionally resets GitHub runs, deployments, branches, tags, and releases. |
 | `admin/01_create_project_control.sql` | Creates the optional production `PROJECT_CONTROL` table used by the controlled deploy workflow. The workflow also creates it automatically if missing. |
 | `reset/01_reset_to_initial_schema.sql` | Reverts v1/v2 changes and restores the initial schema. |
 | `reset/02_drop_all_schema_objects.sql` | Drops production application and SQLcl Project/Liquibase objects, creates `PROJECT_CONTROL` if needed, keeps it, and truncates its contents. |

@@ -16,7 +16,7 @@ and deployment are deferred to GitHub Actions in the next phase.
 - `configure_demo_dashboard_cors.sh` - updates ORDS CORS origins for the dashboard.
 - `start_demo_dashboard.sh` - configures the frontend on first run and starts the local HTTP server.
 - `uninstall_demo_dashboard_api.sh` - removes the read-only ORDS dashboard API.
-- `cleanup_demo.sh` - local cleanup, development reset, optional production schema reset, and optional remote reset.
+- `cleanup_demo.sh` - local cleanup, development reset, optional production schema reset, and optional remote reset including workflow runs, deployments, branches, tags, and releases.
 
 ## Demo Sequence
 
@@ -187,4 +187,6 @@ target schema except `PROJECT_CONTROL`. It truncates `PROJECT_CONTROL` so the
 next demo starts with no installed production version recorded. If
 `PROJECT_CONTROL` is missing, the reset creates it first.
 
-Remote GitHub reset is optional and guarded by a separate `y/N` prompt.
+Remote GitHub reset is optional and guarded by a separate `y/N` prompt. It
+deletes workflow runs, GitHub Deployments, non-main branches, releases, and
+tags before force-pushing a clean `main` branch.
