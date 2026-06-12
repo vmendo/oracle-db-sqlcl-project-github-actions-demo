@@ -719,7 +719,7 @@
       devOnlyTables,
       prodOnlyTables,
       columnDifferences,
-      totalDifferences: devOnlyObjects.length + prodOnlyObjects.length + devOnlyTables.length + prodOnlyTables.length + columnDifferences.length
+      totalDifferences: devOnlyObjects.length + prodOnlyObjects.length
     };
   }
 
